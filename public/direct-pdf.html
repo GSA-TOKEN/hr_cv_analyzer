@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Viewer</title>
+    <style>
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+
+        .header {
+            background-color: #ffffff;
+            padding: 10px 16px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            font-size: 18px;
+            margin: 0;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 70%;
+        }
+
+        .buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+        }
+
+        .btn-primary {
+            background-color: #4299e1;
+            color: white;
+        }
+
+        .btn-secondary {
+            background-color: #e2e8f0;
+            color: #1a202c;
+        }
+
+        .pdf-container {
+            flex-grow: 1;
+            background-color: #1a202c;
+        }
+
+        .pdf-viewer {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .loading,
+        .error {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            background-color: #f7fafc;
+            color: #4a5568;
+        }
+
+        .error {
+            color: #e53e3e;
+        }
+
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #4299e1;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="filename">Loading PDF...</h1>
+            <div class="buttons">
+                <a href="/" class="btn btn-secondary">Back to Files</a>
+                <a id="open-tab-link" href="#" target="_blank" class="btn btn-primary">Open in New Tab</a>
+            </div>
+        </div>
+
+        <div id="pdf-container" class="pdf-container">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading PDF...</p>
+            </div>
+
+            <div id="error" class="error" style="display:none;">
+                <h2>Error Loading PDF</h2>
+                <p id="error-message">Could not load the PDF file.</p>
+                <div style="margin-top: 16px;">
+                    <a id="direct-download" href="#" class="btn btn-primary">Try Direct Download</a>
+                </div>
+            </div>
+
+            <object id="pdf-viewer" class="pdf-viewer" style="display:none;" data="" type="application/pdf">
+                <p>Your browser doesn't support PDF viewing. <a id="fallback-link" href="#">Click here to download the
+                        PDF file</a>.</p>
+            </object>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Parse the PDF filename from the URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const encodedFilename = urlParams.get('file');
+            if (!encodedFilename) {
+                showError('No file specified');
+                return;
+            }
+
+            const filename = decodeURIComponent(encodedFilename);
+            document.getElementById('filename').textContent = filename;
+
+            // Set up the PDF URL
+            const pdfUrl = `/api/serve-cv/${encodedFilename}`;
+
+            // Update all links
+            document.getElementById('open-tab-link').href = pdfUrl;
+            document.getElementById('direct-download').href = pdfUrl;
+            document.getElementById('fallback-link').href = pdfUrl;
+
+            // Check if the file exists
+            fetch(pdfUrl, { method: 'HEAD' })
+                .then(response => {
+                    if (response.ok) {
+                        // File exists, load the PDF
+                        const pdfViewer = document.getElementById('pdf-viewer');
+                        pdfViewer.data = pdfUrl;
+                        document.getElementById('loading').style.display = 'none';
+                        pdfViewer.style.display = 'block';
+                    } else {
+                        // File doesn't exist
+                        showError(`Error ${response.status}: ${response.statusText}`);
+                    }
+                })
+                .catch(err => {
+                    showError(`Failed to load file: ${err.message}`);
+                });
+        });
+
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error').style.display = 'flex';
+            document.getElementById('error-message').textContent = message;
+        }
+    </script>
+</body>
+
+</html>

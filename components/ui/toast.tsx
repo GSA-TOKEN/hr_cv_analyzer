@@ -3,7 +3,9 @@
 import * as React from "react"
 import * as ToastPrimitives from "@radix-ui/react-toast"
 import { cva, type VariantProps } from "class-variance-authority"
-import { X } from "lucide-react"
+import { X, CheckCircle, AlertCircle, Info } from "lucide-react"
+import { useState, useEffect } from 'react';
+import { useToast, ToastProps as CustomToastProps } from './use-toast';
 
 import { cn } from "@/lib/utils"
 
@@ -43,7 +45,7 @@ const toastVariants = cva(
 const Toast = React.forwardRef<
   React.ElementRef<typeof ToastPrimitives.Root>,
   React.ComponentPropsWithoutRef<typeof ToastPrimitives.Root> &
-    VariantProps<typeof toastVariants>
+  VariantProps<typeof toastVariants>
 >(({ className, variant, ...props }, ref) => {
   return (
     <ToastPrimitives.Root
@@ -126,4 +128,77 @@ export {
   ToastDescription,
   ToastClose,
   ToastAction,
+}
+
+export function ToastContainer() {
+  const { toasts, dismiss } = useToast();
+
+  if (toasts.length === 0) return null;
+
+  return (
+    <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
+      {toasts.map((toast) => (
+        <ToastItem key={toast.id} toast={toast} onDismiss={() => dismiss(toast.id)} />
+      ))}
+    </div>
+  );
+}
+
+function ToastItem({
+  toast,
+  onDismiss
+}: {
+  toast: CustomToastProps & { id: string }
+  onDismiss: () => void
+}) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+    return () => setIsVisible(false);
+  }, []);
+
+  let bgColor = 'bg-white';
+  let icon = <Info className="h-5 w-5 text-blue-500" />;
+
+  const variant = toast.variant || 'default';
+
+  if (variant === 'destructive') {
+    bgColor = 'bg-red-50 border-red-200';
+    icon = <AlertCircle className="h-5 w-5 text-red-500" />;
+  } else if (variant === 'success') {
+    bgColor = 'bg-green-50 border-green-200';
+    icon = <CheckCircle className="h-5 w-5 text-green-500" />;
+  }
+
+  return (
+    <div
+      className={`transform transition-all duration-300 ease-in-out ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
+        }`}
+    >
+      <div className={`max-w-md overflow-hidden rounded-lg border shadow-lg ${bgColor}`}>
+        <div className="flex p-4">
+          <div className="flex-shrink-0">
+            {icon}
+          </div>
+          <div className="ml-3 w-0 flex-1">
+            <p className="text-sm font-medium text-gray-900">{toast.title}</p>
+            {toast.description && (
+              <p className="mt-1 text-sm text-gray-500">{toast.description}</p>
+            )}
+          </div>
+          <div className="ml-4 flex flex-shrink-0">
+            <button
+              type="button"
+              className="inline-flex rounded-md text-gray-400 hover:text-gray-500 focus:outline-none"
+              onClick={onDismiss}
+            >
+              <span className="sr-only">Close</span>
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }

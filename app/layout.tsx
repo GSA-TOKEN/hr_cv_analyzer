@@ -1,20 +1,27 @@
 import type { Metadata } from 'next'
+import { Inter } from "next/font/google"
 import './globals.css'
+import { ToastProvider } from "@/components/ui/simple-toast"
+
+const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'HR CV Analyzer',
+  description: 'AI-powered CV analysis and management system',
 }
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode
-}>) {
+}) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={inter.className}>
+        <ToastProvider>
+          {children}
+        </ToastProvider>
+      </body>
     </html>
   )
 }

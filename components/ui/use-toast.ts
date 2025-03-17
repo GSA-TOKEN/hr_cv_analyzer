@@ -2,6 +2,7 @@
 
 // Inspired by react-hot-toast library
 import * as React from "react"
+import { useState, useEffect } from 'react';
 
 import type {
   ToastActionElement,
@@ -36,21 +37,21 @@ type ActionType = typeof actionTypes
 
 type Action =
   | {
-      type: ActionType["ADD_TOAST"]
-      toast: ToasterToast
-    }
+    type: ActionType["ADD_TOAST"]
+    toast: ToasterToast
+  }
   | {
-      type: ActionType["UPDATE_TOAST"]
-      toast: Partial<ToasterToast>
-    }
+    type: ActionType["UPDATE_TOAST"]
+    toast: Partial<ToasterToast>
+  }
   | {
-      type: ActionType["DISMISS_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
+    type: ActionType["DISMISS_TOAST"]
+    toastId?: ToasterToast["id"]
+  }
   | {
-      type: ActionType["REMOVE_TOAST"]
-      toastId?: ToasterToast["id"]
-    }
+    type: ActionType["REMOVE_TOAST"]
+    toastId?: ToasterToast["id"]
+  }
 
 interface State {
   toasts: ToasterToast[]
@@ -108,9 +109,9 @@ export const reducer = (state: State, action: Action): State => {
         toasts: state.toasts.map((t) =>
           t.id === toastId || toastId === undefined
             ? {
-                ...t,
-                open: false,
-              }
+              ...t,
+              open: false,
+            }
             : t
         ),
       }
@@ -171,24 +172,45 @@ function toast({ ...props }: Toast) {
   }
 }
 
-function useToast() {
-  const [state, setState] = React.useState<State>(memoryState)
+export type ToastVariant = 'default' | 'destructive' | 'success';
 
-  React.useEffect(() => {
-    listeners.push(setState)
-    return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) {
-        listeners.splice(index, 1)
-      }
-    }
-  }, [state])
-
-  return {
-    ...state,
-    toast,
-    dismiss: (toastId?: string) => dispatch({ type: "DISMISS_TOAST", toastId }),
-  }
+export interface ToastProps {
+  title: string;
+  description?: string;
+  variant?: ToastVariant;
+  duration?: number; // in milliseconds
 }
 
-export { useToast, toast }
+export const useToast = () => {
+  const [toasts, setToasts] = useState<(ToastProps & { id: string })[]>([]);
+
+  // Remove a toast after its duration expires
+  useEffect(() => {
+    const timeouts: NodeJS.Timeout[] = [];
+
+    toasts.forEach((toast) => {
+      const timeout = setTimeout(() => {
+        setToasts((prevToasts) => prevToasts.filter((t) => t.id !== toast.id));
+      }, toast.duration || 5000);
+
+      timeouts.push(timeout);
+    });
+
+    return () => {
+      timeouts.forEach(clearTimeout);
+    };
+  }, [toasts]);
+
+  const toast = (props: ToastProps) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts((prev) => [...prev, { ...props, id }]);
+
+    return id;
+  };
+
+  const dismiss = (id: string) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  return { toast, dismiss, toasts };
+};

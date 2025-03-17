@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, ArrowUpDown, Users } from "lucide-react"
+import { Search, Filter, ArrowUpDown, Users, FileText } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -9,6 +9,7 @@ import CandidateTable from "@/components/candidate-table"
 import HierarchicalTagSelector from "@/components/hierarchical-tag-selector"
 import ScoreBreakdown from "@/components/score-breakdown"
 import CandidateStats from "@/components/candidate-stats"
+import ResumeView from "@/components/resume-view"
 import { fetchCandidates } from "@/lib/api"
 import { filterCandidatesByTags } from "@/lib/tag-utils"
 import type { Candidate } from "@/types/cv-types"
@@ -198,45 +199,45 @@ export default function Dashboard() {
                 overallScore={
                   filteredCandidates.length > 0
                     ? Math.round(
-                        filteredCandidates.reduce((sum, c) => sum + c.overallScore, 0) / filteredCandidates.length,
-                      )
+                      filteredCandidates.reduce((sum, c) => sum + c.overallScore, 0) / filteredCandidates.length,
+                    )
                     : 0
                 }
                 scoreComponents={{
                   departmentMatch:
                     filteredCandidates.length > 0
                       ? Math.round(
-                          filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.departmentMatch, 0) /
-                            filteredCandidates.length,
-                        )
+                        filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.departmentMatch, 0) /
+                        filteredCandidates.length,
+                      )
                       : 0,
                   technicalQualification:
                     filteredCandidates.length > 0
                       ? Math.round(
-                          filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.technicalQualification, 0) /
-                            filteredCandidates.length,
-                        )
+                        filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.technicalQualification, 0) /
+                        filteredCandidates.length,
+                      )
                       : 0,
                   experienceValue:
                     filteredCandidates.length > 0
                       ? Math.round(
-                          filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.experienceValue, 0) /
-                            filteredCandidates.length,
-                        )
+                        filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.experienceValue, 0) /
+                        filteredCandidates.length,
+                      )
                       : 0,
                   languageProficiency:
                     filteredCandidates.length > 0
                       ? Math.round(
-                          filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.languageProficiency, 0) /
-                            filteredCandidates.length,
-                        )
+                        filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.languageProficiency, 0) /
+                        filteredCandidates.length,
+                      )
                       : 0,
                   practicalFactors:
                     filteredCandidates.length > 0
                       ? Math.round(
-                          filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.practicalFactors, 0) /
-                            filteredCandidates.length,
-                        )
+                        filteredCandidates.reduce((sum, c) => sum + c.scoreComponents.practicalFactors, 0) /
+                        filteredCandidates.length,
+                      )
                       : 0,
                 }}
               />
@@ -247,7 +248,11 @@ export default function Dashboard() {
         {/* Main Content */}
         <div className={showFilters ? "md:col-span-3" : "md:col-span-4"}>
           <Tabs defaultValue="search" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="resume">
+                <FileText className="h-4 w-4 mr-2" />
+                Resume
+              </TabsTrigger>
               <TabsTrigger value="search">
                 <Search className="h-4 w-4 mr-2" />
                 Candidate Search
@@ -257,6 +262,10 @@ export default function Dashboard() {
                 Talent Analytics
               </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="resume" className="space-y-6">
+              <ResumeView />
+            </TabsContent>
 
             <TabsContent value="search" className="space-y-6">
               <div className="flex justify-between items-center">
