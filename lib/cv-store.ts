@@ -9,6 +9,7 @@ export interface CV {
     analyzed: boolean;
     path: string;
     tags?: string[];
+    age?: number;
 }
 
 class CVStore {
@@ -129,7 +130,39 @@ class CVStore {
 
         const updatedCV = {
             ...cv,
-            tags
+            tags: [...(cv.tags || []), ...tags]
+        };
+
+        this.cvs.set(id, updatedCV);
+        return updatedCV;
+    }
+
+    updateCVAge(id: string, age: number): CV | undefined {
+        const cv = this.cvs.get(id);
+        if (!cv) return undefined;
+
+        // Determine age range tag
+        let ageRangeTag = '';
+        if (age < 18) {
+            ageRangeTag = '18- Years';
+        } else if (age <= 22) {
+            ageRangeTag = '18-22 Years';
+        } else if (age <= 28) {
+            ageRangeTag = '23-28 Years';
+        } else if (age <= 35) {
+            ageRangeTag = '29-35 Years';
+        } else if (age <= 45) {
+            ageRangeTag = '36-45 Years';
+        } else {
+            ageRangeTag = '46+ Years';
+        }
+
+        const formattedAgeRangeTag = `age:${ageRangeTag.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`;
+
+        const updatedCV = {
+            ...cv,
+            age,
+            tags: [...(cv.tags || []), `age:${age}`, formattedAgeRangeTag]
         };
 
         this.cvs.set(id, updatedCV);

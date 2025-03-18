@@ -19,13 +19,15 @@ import {
   technicalSkillCategories,
   softSkills,
   certifications,
+  ageRanges,
   LanguageOption,
   ProficiencyLevel,
   EducationLevel,
   FieldRelevance,
   ExperienceDuration,
   EstablishmentType,
-  PositionLevel
+  PositionLevel,
+  AgeRange
 } from "@/types/tag-types"
 
 interface TagSelectorProps {
@@ -53,6 +55,11 @@ const experience: Record<string, string[]> = {
   "Duration": experienceDurations,
   "Establishment Type": establishmentTypes,
   "Position Level": positionLevels
+}
+
+// Age categories
+const age: Record<string, string[]> = {
+  "Age Range": ageRanges
 }
 
 // Define custom badge variant type that includes our new variants
@@ -144,11 +151,35 @@ export default function TagSelector({
     .filter(tag => tag.startsWith("certifications:"))
     .sort()
 
+  const ageTags = Array.from(allTags)
+    .filter(tag => tag.startsWith("age:"))
+    .sort()
+
+  // Create predefined age tags, so they show up even if no candidates have them yet
+  const predefinedAgeTags = ageRanges.map(range => {
+    const rangeValue = range.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")
+    return `age:${rangeValue}`
+  })
+
+  // Combine with any existing age tags
+  const combinedAgeTags = [...new Set([...ageTags, ...predefinedAgeTags])].sort()
+
+  // Make sure the age tags explicitly exist in the tag list for searching
+  useEffect(() => {
+    predefinedAgeTags.forEach(tag => {
+      if (!allTags.has(tag)) {
+        allTags.add(tag)
+      }
+    })
+  }, [])
+
   const filterTagsByQuery = (tags: string[]) => {
     if (!searchQuery) return tags
     return tags.filter(
-      (tag) =>
-        getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()),
+      (tag) => {
+        const displayName = getTagDisplayName(tag)
+        return displayName.toLowerCase().includes(searchQuery.toLowerCase())
+      }
     )
   }
 
@@ -170,7 +201,19 @@ export default function TagSelector({
 
   const getTagDisplayName = (tag: string) => {
     const parts = tag.split(":")
+    const category = parts[0]
     const value = parts[parts.length - 1]
+
+    // Special case for age tags - simplify to just the range numbers
+    if (category === "age") {
+      if (value === "18-years") return "18-"
+      if (value === "18-22-years") return "18-22"
+      if (value === "23-28-years") return "23-28"
+      if (value === "29-35-years") return "29-35"
+      if (value === "36-45-years") return "36-45"
+      if (value === "46-years") return "46+"
+    }
+
     return value
       .replace(/-/g, " ")
       .replace(/\b\w/g, (char) => char.toUpperCase())
@@ -190,6 +233,8 @@ export default function TagSelector({
         return "Soft Skills"
       case "certifications":
         return "Certifications"
+      case "age":
+        return "Age"
       default:
         return category
           .replace(/-/g, " ")
@@ -214,6 +259,8 @@ export default function TagSelector({
         return "neutral"
       case "certifications":
         return "warning"
+      case "age":
+        return "outline"
       default:
         return "outline"
     }
@@ -270,136 +317,165 @@ export default function TagSelector({
 
           <ScrollArea className="h-96 p-2">
             {/* Languages Category */}
-            {Object.keys(languageTagsBySubcategory).some(
-              (subcategory) => languageTagsBySubcategory[subcategory].length > 0
-            ) && (
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2">Languages</h3>
-                  {Object.entries(languageTagsBySubcategory).map(
-                    ([subcategory, tags]) =>
-                      tags.length > 0 && (
-                        <div key={subcategory} className="mb-2">
-                          <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
-                            {subcategory}
-                          </h4>
-                          <div className="flex flex-wrap gap-1 ml-4">
-                            {filterTagsByQuery(tags).map((tag) => {
-                              const isSelected = selectedTags.includes(tag)
-                              return (
-                                <Badge
-                                  key={tag}
-                                  // @ts-ignore - Our component supports these variants
-                                  variant={getTagVariant(
-                                    tag,
-                                    isSelected,
-                                  )}
-                                  className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
-                                    }`}
-                                  onClick={() => onTagSelect(tag)}
-                                >
-                                  {isSelected && (
-                                    <Check size={12} className="mr-1" />
-                                  )}
-                                  {getTagDisplayName(tag)}
-                                </Badge>
-                              )
-                            })}
-                          </div>
+            {(!searchQuery || tagsByCategory["languages"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Languages</h3>
+                {Object.entries(languageTagsBySubcategory).map(
+                  ([subcategory, tags]) =>
+                    tags.length > 0 && (
+                      <div key={subcategory} className="mb-2">
+                        <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
+                          {subcategory}
+                        </h4>
+                        <div className="flex flex-wrap gap-1 ml-4">
+                          {filterTagsByQuery(tags).map((tag) => {
+                            const isSelected = selectedTags.includes(tag)
+                            return (
+                              <Badge
+                                key={tag}
+                                // @ts-ignore - Our component supports these variants
+                                variant={getTagVariant(
+                                  tag,
+                                  isSelected,
+                                )}
+                                className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
+                                  }`}
+                                onClick={() => onTagSelect(tag)}
+                              >
+                                {isSelected && (
+                                  <Check size={12} className="mr-1" />
+                                )}
+                                {getTagDisplayName(tag)}
+                              </Badge>
+                            )
+                          })}
                         </div>
-                      ),
-                  )}
+                      </div>
+                    ),
+                )}
+                <Separator className="my-2" />
+              </div>
+            )}
+
+            {/* Age Category */}
+            {(!searchQuery ||
+              combinedAgeTags.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase())) ||
+              "age".includes(searchQuery.toLowerCase())) && (
+                <div className="mb-4">
+                  <h3 className="font-semibold mb-2">Age</h3>
+                  <div className="flex flex-wrap gap-1 ml-4">
+                    {/* Always show age tags when age category is visible */}
+                    {(!searchQuery ? combinedAgeTags :
+                      combinedAgeTags.filter(tag =>
+                        getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase())
+                      ).length > 0 ?
+                        combinedAgeTags.filter(tag =>
+                          getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase())
+                        ) :
+                        combinedAgeTags).map((tag) => {
+                          const isSelected = selectedTags.includes(tag)
+                          return (
+                            <Badge
+                              key={tag}
+                              // @ts-ignore - Our component supports these variants
+                              variant={getTagVariant(tag, isSelected)}
+                              className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""}`}
+                              onClick={() => onTagSelect(tag)}
+                            >
+                              {isSelected && <Check size={12} className="mr-1" />}
+                              {getTagDisplayName(tag)}
+                            </Badge>
+                          )
+                        })}
+                  </div>
                   <Separator className="my-2" />
                 </div>
               )}
 
             {/* Education Category */}
-            {Object.keys(educationTagsBySubcategory).some(
-              (subcategory) => educationTagsBySubcategory[subcategory].length > 0
-            ) && (
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2">Education</h3>
-                  {Object.entries(educationTagsBySubcategory).map(
-                    ([subcategory, tags]) =>
-                      tags.length > 0 && (
-                        <div key={subcategory} className="mb-2">
-                          <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
-                            {subcategory}
-                          </h4>
-                          <div className="flex flex-wrap gap-1 ml-4">
-                            {filterTagsByQuery(tags).map((tag) => {
-                              const isSelected = selectedTags.includes(tag)
-                              return (
-                                <Badge
-                                  key={tag}
-                                  // @ts-ignore - Our component supports these variants
-                                  variant={getTagVariant(
-                                    tag,
-                                    isSelected,
-                                  )}
-                                  className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
-                                    }`}
-                                  onClick={() => onTagSelect(tag)}
-                                >
-                                  {isSelected && (
-                                    <Check size={12} className="mr-1" />
-                                  )}
-                                  {getTagDisplayName(tag)}
-                                </Badge>
-                              )
-                            })}
-                          </div>
+            {(!searchQuery || tagsByCategory["education"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Education</h3>
+                {Object.entries(educationTagsBySubcategory).map(
+                  ([subcategory, tags]) =>
+                    tags.length > 0 && (
+                      <div key={subcategory} className="mb-2">
+                        <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
+                          {subcategory}
+                        </h4>
+                        <div className="flex flex-wrap gap-1 ml-4">
+                          {filterTagsByQuery(tags).map((tag) => {
+                            const isSelected = selectedTags.includes(tag)
+                            return (
+                              <Badge
+                                key={tag}
+                                // @ts-ignore - Our component supports these variants
+                                variant={getTagVariant(
+                                  tag,
+                                  isSelected,
+                                )}
+                                className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
+                                  }`}
+                                onClick={() => onTagSelect(tag)}
+                              >
+                                {isSelected && (
+                                  <Check size={12} className="mr-1" />
+                                )}
+                                {getTagDisplayName(tag)}
+                              </Badge>
+                            )
+                          })}
                         </div>
-                      ),
-                  )}
-                  <Separator className="my-2" />
-                </div>
-              )}
+                      </div>
+                    ),
+                )}
+                <Separator className="my-2" />
+              </div>
+            )}
 
             {/* Experience Category */}
-            {Object.keys(experienceTagsBySubcategory).some(
-              (subcategory) => experienceTagsBySubcategory[subcategory].length > 0
-            ) && (
-                <div className="mb-4">
-                  <h3 className="font-semibold mb-2">Experience</h3>
-                  {Object.entries(experienceTagsBySubcategory).map(
-                    ([subcategory, tags]) =>
-                      tags.length > 0 && (
-                        <div key={subcategory} className="mb-2">
-                          <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
-                            {subcategory}
-                          </h4>
-                          <div className="flex flex-wrap gap-1 ml-4">
-                            {filterTagsByQuery(tags).map((tag) => {
-                              const isSelected = selectedTags.includes(tag)
-                              return (
-                                <Badge
-                                  key={tag}
-                                  // @ts-ignore - Our component supports these variants
-                                  variant={getTagVariant(
-                                    tag,
-                                    isSelected,
-                                  )}
-                                  className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
-                                    }`}
-                                  onClick={() => onTagSelect(tag)}
-                                >
-                                  {isSelected && (
-                                    <Check size={12} className="mr-1" />
-                                  )}
-                                  {getTagDisplayName(tag)}
-                                </Badge>
-                              )
-                            })}
-                          </div>
+            {(!searchQuery || tagsByCategory["experience"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
+              <div className="mb-4">
+                <h3 className="font-semibold mb-2">Experience</h3>
+                {Object.entries(experienceTagsBySubcategory).map(
+                  ([subcategory, tags]) =>
+                    tags.length > 0 && (
+                      <div key={subcategory} className="mb-2">
+                        <h4 className="text-sm font-medium ml-2 text-gray-500 mb-1">
+                          {subcategory}
+                        </h4>
+                        <div className="flex flex-wrap gap-1 ml-4">
+                          {filterTagsByQuery(tags).map((tag) => {
+                            const isSelected = selectedTags.includes(tag)
+                            return (
+                              <Badge
+                                key={tag}
+                                // @ts-ignore - Our component supports these variants
+                                variant={getTagVariant(
+                                  tag,
+                                  isSelected,
+                                )}
+                                className={`cursor-pointer px-2 py-1 text-xs ${isSelected ? "border-primary" : ""
+                                  }`}
+                                onClick={() => onTagSelect(tag)}
+                              >
+                                {isSelected && (
+                                  <Check size={12} className="mr-1" />
+                                )}
+                                {getTagDisplayName(tag)}
+                              </Badge>
+                            )
+                          })}
                         </div>
-                      ),
-                  )}
-                  <Separator className="my-2" />
-                </div>
-              )}
+                      </div>
+                    ),
+                )}
+                <Separator className="my-2" />
+              </div>
+            )}
 
             {/* Technical Skills Category */}
-            {techSkillsTags.some((item) => item.tags.length > 0) && (
+            {(!searchQuery || tagsByCategory["techskills"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Technical Skills</h3>
                 {techSkillsTags.map(
@@ -440,7 +516,7 @@ export default function TagSelector({
             )}
 
             {/* Soft Skills Category */}
-            {softSkillsTags.length > 0 && (
+            {(!searchQuery || tagsByCategory["softskills"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Soft Skills</h3>
                 <div className="flex flex-wrap gap-1 ml-4">
@@ -466,7 +542,7 @@ export default function TagSelector({
             )}
 
             {/* Certifications Category */}
-            {certificationsTags.length > 0 && (
+            {(!searchQuery || tagsByCategory["certifications"]?.some(tag => getTagDisplayName(tag).toLowerCase().includes(searchQuery.toLowerCase()))) && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Certifications</h3>
                 <div className="flex flex-wrap gap-1 ml-4">

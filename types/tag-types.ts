@@ -1,5 +1,5 @@
 // Define the hierarchical tag structure types
-export type TagCategory = "languages" | "education" | "experience" | "techskills" | "softskills" | "certifications"
+export type TagCategory = "languages" | "education" | "experience" | "techskills" | "softskills" | "certifications" | "age"
 
 // Languages categories
 export type LanguageOption =
@@ -381,6 +381,24 @@ export const certifications = [
   "Language Certifications (TOEFL, IELTS)",
   "Eco-Certification (Green Globe, Travelife)",
 ] as const
+
+// Age categories
+export type AgeRange =
+  | "18- Years"
+  | "18-22 Years"
+  | "23-28 Years"
+  | "29-35 Years"
+  | "36-45 Years"
+  | "46+ Years"
+
+export const ageRanges: AgeRange[] = [
+  "18- Years",
+  "18-22 Years",
+  "23-28 Years",
+  "29-35 Years",
+  "36-45 Years",
+  "46+ Years"
+]
 
 export type Tag = {
   id: string // Format: "category:subcategory:value" (e.g., "languages:option:english")

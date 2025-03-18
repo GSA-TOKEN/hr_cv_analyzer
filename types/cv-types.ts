@@ -60,6 +60,7 @@ export interface ScoreComponents {
 
 export interface CVAnalysisResult {
   candidateName: string
+  age: number
   experienceLevel: ExperienceLevel
   primaryDepartment: string
   overallScore: number // 0-100
@@ -89,6 +90,7 @@ export interface SearchFilters {
   certifications?: string[]
   minScore?: number
   scoreComponents?: Record<string, number>
+  ageRanges?: string[]
 }
 
 export interface SearchParams {

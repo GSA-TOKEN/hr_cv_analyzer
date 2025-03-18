@@ -236,6 +236,23 @@ export default function AdvancedSearchPanel({ activeFilters, setActiveFilters, c
     }
   }
 
+  const toggleAgeFilter = (ageTag: string) => {
+    // Age tags are stored in the certifications array for simplicity
+    if (activeFilters.certifications.includes(ageTag)) {
+      setActiveFilters({
+        ...activeFilters,
+        certifications: activeFilters.certifications.filter((c) => c !== ageTag),
+      })
+    } else {
+      // Remove any existing age tags before adding the new one
+      const otherCertifications = activeFilters.certifications.filter(c => !c.startsWith("age:"));
+      setActiveFilters({
+        ...activeFilters,
+        certifications: [...otherCertifications, ageTag],
+      })
+    }
+  }
+
   const handleScoreChange = (value: number[]) => {
     setActiveFilters({
       ...activeFilters,
@@ -447,6 +464,57 @@ export default function AdvancedSearchPanel({ activeFilters, setActiveFilters, c
           </AccordionContent>
         </AccordionItem>
 
+        {/* Age Filters */}
+        <AccordionItem value="age">
+          <AccordionTrigger>Age</AccordionTrigger>
+          <AccordionContent>
+            <div className="flex flex-wrap gap-2">
+              <Badge
+                variant={activeFilters.certifications.includes("age:18-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:18-years")}
+              >
+                18-
+              </Badge>
+              <Badge
+                variant={activeFilters.certifications.includes("age:18-22-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:18-22-years")}
+              >
+                18-22
+              </Badge>
+              <Badge
+                variant={activeFilters.certifications.includes("age:23-28-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:23-28-years")}
+              >
+                23-28
+              </Badge>
+              <Badge
+                variant={activeFilters.certifications.includes("age:29-35-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:29-35-years")}
+              >
+                29-35
+              </Badge>
+              <Badge
+                variant={activeFilters.certifications.includes("age:36-45-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:36-45-years")}
+              >
+                36-45
+              </Badge>
+              <Badge
+                variant={activeFilters.certifications.includes("age:46-years") ? "default" : "outline"}
+                className="cursor-pointer"
+                onClick={() => toggleAgeFilter("age:46-years")}
+              >
+                46+
+              </Badge>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
         {/* Certifications Filters */}
         <AccordionItem value="certifications">
           <AccordionTrigger>Certifications</AccordionTrigger>
@@ -559,117 +627,140 @@ export default function AdvancedSearchPanel({ activeFilters, setActiveFilters, c
         activeFilters.certifications.length > 0 ||
         activeFilters.minScore > 0 ||
         Object.keys(activeFilters.scoreComponents).length > 0) && (
-        <div className="mt-4 pt-4 border-t">
-          <h4 className="text-sm font-medium mb-2">Active Filters:</h4>
-          <div className="flex flex-wrap gap-2">
-            {activeFilters.departmentCategories.map((category) => (
-              <Badge key={category} variant="default" className="flex gap-1 items-center">
-                Category: {category}
-                <button
-                  className="ml-1 hover:bg-red-500 rounded-full"
-                  onClick={() => toggleDepartmentCategory(category)}
-                >
-                  ✕
-                </button>
-              </Badge>
-            ))}
-
-            {activeFilters.departments.map((dept) => (
-              <Badge key={dept} variant="secondary" className="flex gap-1 items-center">
-                {dept}
-                <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleDepartment(dept)}>
-                  ✕
-                </button>
-              </Badge>
-            ))}
-
-            {activeFilters.experienceLevels.map((level) => (
-              <Badge key={level} variant="outline" className="flex gap-1 items-center">
-                {level}
-                <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleExperienceLevel(level)}>
-                  ✕
-                </button>
-              </Badge>
-            ))}
-
-            {activeFilters.skillCategories.map((category) => {
-              const displayName =
-                category === "customerFacing"
-                  ? "Customer-Facing"
-                  : category === "operational"
-                    ? "Operational"
-                    : "Administrative"
-
-              return (
+          <div className="mt-4 pt-4 border-t">
+            <h4 className="text-sm font-medium mb-2">Active Filters:</h4>
+            <div className="flex flex-wrap gap-2">
+              {activeFilters.departmentCategories.map((category) => (
                 <Badge key={category} variant="default" className="flex gap-1 items-center">
-                  Skills: {displayName}
+                  Category: {category}
                   <button
                     className="ml-1 hover:bg-red-500 rounded-full"
-                    onClick={() => toggleSkillCategory(displayName)}
+                    onClick={() => toggleDepartmentCategory(category)}
                   >
                     ✕
                   </button>
                 </Badge>
-              )
-            })}
+              ))}
 
-            {activeFilters.skills.map((skill) => (
-              <Badge key={skill} variant="secondary" className="flex gap-1 items-center">
-                {skill}
-                <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleSkill(skill)}>
-                  ✕
-                </button>
-              </Badge>
-            ))}
+              {activeFilters.departments.map((dept) => (
+                <Badge key={dept} variant="secondary" className="flex gap-1 items-center">
+                  {dept}
+                  <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleDepartment(dept)}>
+                    ✕
+                  </button>
+                </Badge>
+              ))}
 
-            {activeFilters.languages.map((language) => (
-              <Badge key={language} variant="outline" className="flex gap-1 items-center">
-                {language}
-                <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleLanguage(language)}>
-                  ✕
-                </button>
-              </Badge>
-            ))}
+              {activeFilters.experienceLevels.map((level) => (
+                <Badge key={level} variant="outline" className="flex gap-1 items-center">
+                  {level}
+                  <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleExperienceLevel(level)}>
+                    ✕
+                  </button>
+                </Badge>
+              ))}
 
-            {activeFilters.certifications.map((cert) => (
-              <Badge key={cert} variant="outline" className="flex gap-1 items-center">
-                Cert: {cert}
-                <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleCertification(cert)}>
-                  ✕
-                </button>
-              </Badge>
-            ))}
+              {activeFilters.skillCategories.map((category) => {
+                const displayName =
+                  category === "customerFacing"
+                    ? "Customer-Facing"
+                    : category === "operational"
+                      ? "Operational"
+                      : "Administrative"
 
-            {activeFilters.minScore > 0 && (
-              <Badge variant="default" className="flex gap-1 items-center">
-                Min Score: {activeFilters.minScore}%
-                <button
-                  className="ml-1 hover:bg-red-500 rounded-full"
-                  onClick={() => setActiveFilters({ ...activeFilters, minScore: 0 })}
-                >
-                  ✕
-                </button>
-              </Badge>
-            )}
+                return (
+                  <Badge key={category} variant="default" className="flex gap-1 items-center">
+                    Skills: {displayName}
+                    <button
+                      className="ml-1 hover:bg-red-500 rounded-full"
+                      onClick={() => toggleSkillCategory(displayName)}
+                    >
+                      ✕
+                    </button>
+                  </Badge>
+                )
+              })}
 
-            {Object.entries(activeFilters.scoreComponents).map(([component, value]) => (
-              <Badge key={component} variant="secondary" className="flex gap-1 items-center">
-                {component.replace(/([A-Z])/g, " $1").trim()}: {value}%
-                <button
-                  className="ml-1 hover:bg-red-500 rounded-full"
-                  onClick={() => {
-                    const newComponents = { ...activeFilters.scoreComponents }
-                    delete newComponents[component]
-                    setActiveFilters({ ...activeFilters, scoreComponents: newComponents })
-                  }}
-                >
-                  ✕
-                </button>
-              </Badge>
-            ))}
+              {activeFilters.skills.map((skill) => (
+                <Badge key={skill} variant="secondary" className="flex gap-1 items-center">
+                  {skill}
+                  <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleSkill(skill)}>
+                    ✕
+                  </button>
+                </Badge>
+              ))}
+
+              {activeFilters.languages.map((language) => (
+                <Badge key={language} variant="outline" className="flex gap-1 items-center">
+                  {language}
+                  <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleLanguage(language)}>
+                    ✕
+                  </button>
+                </Badge>
+              ))}
+
+              {activeFilters.certifications.map((cert) => {
+                // Special handling for age tags
+                if (cert.startsWith("age:")) {
+                  let displayAge = '';
+                  if (cert === "age:18-years") displayAge = "18-";
+                  else if (cert === "age:18-22-years") displayAge = "18-22";
+                  else if (cert === "age:23-28-years") displayAge = "23-28";
+                  else if (cert === "age:29-35-years") displayAge = "29-35";
+                  else if (cert === "age:36-45-years") displayAge = "36-45";
+                  else if (cert === "age:46-years") displayAge = "46+";
+
+                  return (
+                    <Badge key={cert} variant="outline" className="flex gap-1 items-center">
+                      Age: {displayAge}
+                      <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleAgeFilter(cert)}>
+                        ✕
+                      </button>
+                    </Badge>
+                  );
+                }
+
+                // Regular certification display
+                return (
+                  <Badge key={cert} variant="outline" className="flex gap-1 items-center">
+                    Cert: {cert}
+                    <button className="ml-1 hover:bg-red-500 rounded-full" onClick={() => toggleCertification(cert)}>
+                      ✕
+                    </button>
+                  </Badge>
+                );
+              })}
+
+              {activeFilters.minScore > 0 && (
+                <Badge variant="default" className="flex gap-1 items-center">
+                  Min Score: {activeFilters.minScore}%
+                  <button
+                    className="ml-1 hover:bg-red-500 rounded-full"
+                    onClick={() => setActiveFilters({ ...activeFilters, minScore: 0 })}
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              )}
+
+              {Object.entries(activeFilters.scoreComponents).map(([component, value]) => (
+                <Badge key={component} variant="secondary" className="flex gap-1 items-center">
+                  {component.replace(/([A-Z])/g, " $1").trim()}: {value}%
+                  <button
+                    className="ml-1 hover:bg-red-500 rounded-full"
+                    onClick={() => {
+                      const newComponents = { ...activeFilters.scoreComponents }
+                      delete newComponents[component]
+                      setActiveFilters({ ...activeFilters, scoreComponents: newComponents })
+                    }}
+                  >
+                    ✕
+                  </button>
+                </Badge>
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   )
 }

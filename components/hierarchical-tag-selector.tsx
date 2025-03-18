@@ -13,7 +13,8 @@ import {
   positionLevels,
   technicalSkillCategories,
   softSkills,
-  certifications
+  certifications,
+  ageRanges
 } from "@/types/tag-types"
 
 interface HierarchicalTagSelectorProps {
@@ -33,6 +34,7 @@ interface TagHierarchy {
     "Language Options": TagItems;
     "Proficiency Levels": TagItems;
   };
+  "Age": TagItems;
   "Education": {
     "Education Level": TagItems;
     "Field Relevance": TagItems;
@@ -52,6 +54,7 @@ const tagHierarchy: TagHierarchy = {
     "Language Options": languageOptions,
     "Proficiency Levels": proficiencyLevels
   },
+  "Age": ageRanges,
   "Education": {
     "Education Level": educationLevels,
     "Field Relevance": fieldRelevance
@@ -254,6 +257,7 @@ export default function HierarchicalTagSelector({
   const createTagIdFromHierarchy = (category: keyof TagHierarchy, subcategory: string, value: string): string => {
     const categoryMap: Record<keyof TagHierarchy, string> = {
       "Languages": "languages",
+      "Age": "age",
       "Education": "education",
       "Experience": "experience",
       "Technical Skills": "techskills",
@@ -532,9 +536,9 @@ export default function HierarchicalTagSelector({
       } else {
         // Handle categories with subcategories
         Object.entries(content).forEach(([subcategory, tags]) => {
-          tags
-            .filter((tag) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
-            .forEach((tag) => {
+          (tags as string[])
+            .filter((tag: string) => tag.toLowerCase().includes(searchTerm.toLowerCase()))
+            .forEach((tag: string) => {
               const tagId = createTagIdFromHierarchy(category as keyof TagHierarchy, subcategory, tag)
               const isSelected = selectedTags.includes(tagId)
               results.push(

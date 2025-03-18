@@ -295,11 +295,19 @@ export default function ResumeView() {
                                 <div className="flex flex-col gap-2">
                                     <div className="flex justify-between items-start mb-2">
                                         <FileText className="h-10 w-10 text-primary" />
-                                        {file.analyzed ? (
-                                            <Badge variant="outline" className="bg-green-100">Analyzed</Badge>
-                                        ) : (
-                                            <Badge variant="outline" className="bg-amber-100">Unanalyzed</Badge>
-                                        )}
+                                        <div className="flex flex-col gap-1 items-end">
+                                            {file.analyzed ? (
+                                                <Badge variant="outline" className="bg-green-100">Analyzed</Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="bg-amber-100">Unanalyzed</Badge>
+                                            )}
+                                            {file.age && (
+                                                <Badge variant="outline" className="bg-blue-100">Age: {file.age}</Badge>
+                                            )}
+                                            {file.tags?.filter(tag => tag.includes('Years') || tag.includes('Age')).map((tag, index) => (
+                                                <Badge key={index} variant="outline" className="bg-purple-100">{tag}</Badge>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     <h3 className="font-medium text-sm truncate" title={file.filename}>

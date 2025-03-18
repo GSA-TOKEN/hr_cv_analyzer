@@ -6,68 +6,66 @@ export async function analyzeCV(file: File): Promise<CVAnalysisResult> {
   // Simulate processing time
   await new Promise((resolve) => setTimeout(resolve, 2000))
 
-  // In a real implementation, you would:
-  // 1. Extract text from the CV (PDF/DOCX parsing)
-  // 2. Process with NLP/AI to identify skills, experience, etc.
-  // 3. Score against hospitality industry requirements
-  // 4. Generate tags and recommendations
+  // Generate a random age between 18-50 for mock data
+  const age = Math.floor(Math.random() * (50 - 18) + 18)
 
-  // This is mock data for demonstration
-  return {
+  // Determine age range tag
+  let ageRangeTag = ''
+  if (age < 18) {
+    ageRangeTag = '18- Years'
+  } else if (age <= 22) {
+    ageRangeTag = '18-22 Years'
+  } else if (age <= 28) {
+    ageRangeTag = '23-28 Years'
+  } else if (age <= 35) {
+    ageRangeTag = '29-35 Years'
+  } else if (age <= 45) {
+    ageRangeTag = '36-45 Years'
+  } else {
+    ageRangeTag = '46+ Years'
+  }
+
+  // Mock analysis result
+  // In a real implementation, this would analyze the actual CV file
+  const mockResult: CVAnalysisResult = {
     candidateName: "Maria Rodriguez",
+    age,
     experienceLevel: "Mid-Level (2-5 years)",
     primaryDepartment: "Guest Services",
-    overallScore: 82,
+    overallScore: 88,
     scoreComponents: {
-      departmentMatch: 85,
-      technicalQualification: 78,
-      experienceValue: 80,
-      languageProficiency: 90,
-      practicalFactors: 75,
+      departmentMatch: 90,
+      technicalQualification: 85,
+      experienceValue: 88,
+      languageProficiency: 95,
+      practicalFactors: 82,
     },
     departmentScores: [
       { category: "Guest Services", department: "Front Office", score: 92 },
       { category: "Guest Services", department: "Guest Relations", score: 88 },
-      { category: "Guest Services", department: "Reservation", score: 85 },
-      { category: "Guest Services", department: "CRM & Call Center", score: 75 },
-      { category: "Guest Services", department: "SPA", score: 40 },
-      { category: "Guest Services", department: "Kids Club", score: 30 },
-
-      { category: "Accommodation Services", department: "Housekeeping", score: 55 },
-      { category: "Accommodation Services", department: "Laundry", score: 35 },
-
-      { category: "Food & Beverage", department: "F&B Service", score: 65 },
-      { category: "Food & Beverage", department: "Kitchen", score: 25 },
-
-      { category: "Business Operations", department: "Human Resources", score: 45 },
-      { category: "Business Operations", department: "Marketing", score: 60 },
-
-      { category: "Facilities Management", department: "Information Technology", score: 30 },
+      { category: "Business Operations", department: "CRM & Call Center", score: 78 },
     ],
     roleSkills: {
       customerFacing: [
         { name: "Guest Communication", level: 5 },
         { name: "Problem Resolution", level: 4 },
-        { name: "Service Excellence", level: 5 },
-        { name: "Upselling", level: 3 },
+        { name: "Cultural Awareness", level: 5 },
       ],
       operational: [
-        { name: "Opera PMS", level: 5 },
-        { name: "Reservation Systems", level: 4 },
-        { name: "Payment Processing", level: 4 },
-        { name: "Check-in/Check-out", level: 5 },
+        { name: "Opera PMS", level: 4 },
+        { name: "Booking Systems", level: 4 },
+        { name: "CRM Software", level: 3 },
       ],
       administrative: [
-        { name: "Reporting", level: 3 },
-        { name: "Documentation", level: 4 },
-        { name: "Inventory Management", level: 2 },
+        { name: "Report Generation", level: 3 },
+        { name: "Team Coordination", level: 4 },
+        { name: "Process Documentation", level: 3 },
       ],
     },
     languages: [
       { language: "English", level: 5 },
       { language: "Spanish", level: 5 },
       { language: "French", level: 3 },
-      { language: "German", level: 2 },
     ],
     certifications: [
       {
@@ -110,7 +108,11 @@ export async function analyzeCV(file: File): Promise<CVAnalysisResult> {
       "lang:english-native",
       "lang:spanish-native",
       "lang:french-intermediate",
+      `age:${age}`,
+      `age:${ageRangeTag.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`,
     ],
   }
+
+  return mockResult
 }
 

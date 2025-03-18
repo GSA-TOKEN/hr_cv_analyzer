@@ -11,6 +11,7 @@ import {
   technicalSkillCategories,
   softSkills,
   certifications,
+  ageRanges,
 } from "@/types/tag-types"
 
 // Convert a string to a tag-friendly format
@@ -44,6 +45,14 @@ export function parseTagId(tagId: string): { category: TagCategory; subcategory?
 
 // Get a display name for a tag value
 export function getTagDisplayName(value: string): string {
+  // For age tags, return simplified format
+  if (value === "18-years") return "18-";
+  if (value === "18-22-years") return "18-22";
+  if (value === "23-28-years") return "23-28";
+  if (value === "29-35-years") return "29-35";
+  if (value === "36-45-years") return "36-45";
+  if (value === "46-years") return "46+";
+
   return value.replace(/-/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
 }
 
@@ -176,6 +185,17 @@ export function generateAllPossibleTags(): Tag[] {
       category: "certifications",
       value: certValue,
       displayName: cert,
+    })
+  })
+
+  // Age tags
+  ageRanges.forEach((range) => {
+    const rangeValue = formatTagValue(range)
+    tags.push({
+      id: createTagId("age", undefined, rangeValue),
+      category: "age",
+      value: rangeValue,
+      displayName: range,
     })
   })
 
