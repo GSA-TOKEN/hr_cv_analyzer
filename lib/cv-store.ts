@@ -10,6 +10,14 @@ export interface CV {
     path: string;
     tags?: string[];
     age?: number;
+    // Additional fields for the API integration
+    department?: string;
+    email?: string;
+    phone?: string;
+    birthdate?: string;
+    expectedSalary?: string;
+    cv?: string;
+    originalCvPath?: string;
 }
 
 class CVStore {

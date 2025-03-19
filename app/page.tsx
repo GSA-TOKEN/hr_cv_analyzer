@@ -247,7 +247,7 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <div className={showFilters ? "md:col-span-3" : "md:col-span-4"}>
-          <Tabs defaultValue="search" className="w-full">
+          <Tabs defaultValue="resume" className="w-full">
             <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="resume">
                 <FileText className="h-4 w-4 mr-2" />
