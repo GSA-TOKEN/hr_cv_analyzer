@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Filter, ArrowUpDown, Users, FileText } from "lucide-react"
+import { Search, Filter, ArrowUpDown, Users, FileText, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -13,6 +13,13 @@ import ResumeView from "@/components/resume-view"
 import { fetchCandidates } from "@/lib/api"
 import { filterCandidatesByTags } from "@/lib/tag-utils"
 import type { Candidate } from "@/types/cv-types"
+import Link from "next/link"
+import dynamic from 'next/dynamic'
+
+// Use dynamic import with no SSR for components that might cause hydration issues
+const DynamicResumeView = dynamic(() => import('@/components/resume-view'), { ssr: false })
+const DynamicCandidateTable = dynamic(() => import('@/components/candidate-table'), { ssr: false })
+const DynamicCandidateStats = dynamic(() => import('@/components/candidate-stats'), { ssr: false })
 
 export default function Dashboard() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
@@ -29,6 +36,12 @@ export default function Dashboard() {
     languageProficiency: 0,
     practicalFactors: 0,
   })
+  const [mounted, setMounted] = useState(false)
+
+  // Set mounted state to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Load all candidates on initial render
   useEffect(() => {
@@ -45,12 +58,14 @@ export default function Dashboard() {
       }
     }
 
-    loadCandidates()
-  }, [])
+    if (mounted) {
+      loadCandidates()
+    }
+  }, [mounted])
 
   // Filter candidates based on search query, tags, and score filters
   useEffect(() => {
-    if (candidates.length === 0) return
+    if (candidates.length === 0 || !mounted) return
 
     let results = [...candidates]
 
@@ -105,7 +120,7 @@ export default function Dashboard() {
     results.sort((a, b) => b.overallScore - a.overallScore)
 
     setFilteredCandidates(results)
-  }, [candidates, searchQuery, selectedTags, scoreFilters])
+  }, [candidates, searchQuery, selectedTags, scoreFilters, mounted])
 
   const toggleFilters = () => {
     setShowFilters(!showFilters)
@@ -147,11 +162,26 @@ export default function Dashboard() {
     setSearchQuery("")
   }
 
+  // Return a minimal UI until client-side code has hydrated
+  if (!mounted) {
+    return (
+      <div className="container mx-auto py-6 flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    )
+  }
+
   return (
     <div className="container mx-auto py-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Resort Operations Talent Dashboard</h1>
         <div className="flex gap-2">
+          <Link href="/cv-test">
+            <Button variant="secondary" size="sm">
+              <FileText className="h-4 w-4 mr-2" />
+              Test CV Analysis
+            </Button>
+          </Link>
           <Button variant="outline" size="sm" onClick={toggleFilters}>
             <Filter className="h-4 w-4 mr-2" />
             {showFilters ? "Hide Filters" : "Show Filters"}
@@ -264,7 +294,7 @@ export default function Dashboard() {
             </TabsList>
 
             <TabsContent value="resume" className="space-y-6">
-              <ResumeView />
+              <DynamicResumeView />
             </TabsContent>
 
             <TabsContent value="search" className="space-y-6">
@@ -274,11 +304,11 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <CandidateTable candidates={filteredCandidates} isLoading={isLoading} />
+              <DynamicCandidateTable candidates={filteredCandidates} isLoading={isLoading} />
             </TabsContent>
 
             <TabsContent value="analytics">
-              <CandidateStats candidates={candidates} />
+              <DynamicCandidateStats candidates={candidates} />
             </TabsContent>
           </Tabs>
         </div>

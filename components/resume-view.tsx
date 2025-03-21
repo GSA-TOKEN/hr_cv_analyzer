@@ -1,15 +1,16 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { FileText, Upload, Filter, CheckSquare, ArrowRight, Eye, Loader2, Maximize2 } from "lucide-react"
-import { useToast } from "@/components/ui/simple-toast"
+import { toast } from "sonner"
 import { CV } from "@/lib/cv-store"
 import PDFViewer from "@/components/pdf-viewer"
+import FetchTextContent from "@/components/fetch-text-content"
 
 export default function ResumeView() {
     const [selectedFiles, setSelectedFiles] = useState<string[]>([])
@@ -19,8 +20,9 @@ export default function ResumeView() {
     const [isLoading, setIsLoading] = useState(true)
     const [isUploading, setIsUploading] = useState(false)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
+    const [viewAnalysis, setViewAnalysis] = useState<CV | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
-    const { addToast: toast } = useToast()
+    const [analyzingUrlCVs, setAnalyzingUrlCVs] = useState<Record<string, boolean>>({})
 
     // Fetch CVs when component mounts or filter changes
     useEffect(() => {
@@ -94,11 +96,7 @@ export default function ResumeView() {
             console.log('Fetched CVs from external API:', mappedCVs);
         } catch (error) {
             console.error('Error fetching CVs:', error)
-            toast({
-                title: "Error",
-                description: "Failed to load resume files from external API",
-                variant: "destructive"
-            })
+            toast.error("Failed to load resume files from external API");
         } finally {
             setIsLoading(false)
         }
@@ -195,10 +193,7 @@ export default function ResumeView() {
             // Show success message
             const successCount = result.files.filter((f: any) => f.success).length
             if (successCount > 0) {
-                toast({
-                    title: "Upload Complete",
-                    description: `Successfully uploaded ${successCount} file(s)`,
-                })
+                toast.success(`Successfully uploaded ${successCount} file(s)`)
                 // Refresh the CV list
                 fetchCVs()
             }
@@ -206,19 +201,11 @@ export default function ResumeView() {
             // Show error if any
             const failedFiles = result.files.filter((f: any) => !f.success)
             if (failedFiles.length > 0) {
-                toast({
-                    title: "Upload Issues",
-                    description: `${failedFiles.length} file(s) failed to upload`,
-                    variant: "destructive"
-                })
+                toast.error(`${failedFiles.length} file(s) failed to upload`)
             }
         } catch (error) {
             console.error('Error uploading files:', error)
-            toast({
-                title: "Upload Failed",
-                description: "Failed to upload files. Please try again.",
-                variant: "destructive"
-            })
+            toast.error("Failed to upload files. Please try again.")
         } finally {
             setIsUploading(false)
             // Reset the input
@@ -233,6 +220,7 @@ export default function ResumeView() {
 
         setIsAnalyzing(true)
         try {
+            // Use our new OCR-powered analyze-cvs endpoint
             const response = await fetch('/api/analyze-cvs', {
                 method: 'POST',
                 headers: {
@@ -245,22 +233,24 @@ export default function ResumeView() {
                 throw new Error('Analysis request failed')
             }
 
-            toast({
-                title: "Analysis Started",
-                description: `Analysis of ${selectedFiles.length} file(s) has been initiated`,
-            })
+            const result = await response.json()
 
-            // Refresh the CV list after a delay to allow for analysis to update status
-            setTimeout(() => {
-                fetchCVs()
-            }, 1000)
+            // Count successful and failed analyses
+            const successful = result.results.filter(
+                (r: any) => r.status === 'fulfilled' && r.value.success
+            ).length
+
+            const failed = result.results.filter(
+                (r: any) => r.status === 'rejected' || !r.value.success
+            ).length
+
+            toast.success(`Successfully analyzed ${successful} file(s)${failed > 0 ? `, ${failed} failed` : ''}`)
+
+            // Refresh the CV list
+            fetchCVs()
         } catch (error) {
             console.error('Error analyzing files:', error)
-            toast({
-                title: "Analysis Failed",
-                description: "Failed to start analysis. Please try again.",
-                variant: "destructive"
-            })
+            toast.error("Failed to start analysis. Please try again.")
         } finally {
             setIsAnalyzing(false)
         }
@@ -280,11 +270,71 @@ export default function ResumeView() {
         console.log("Opening CV URL:", cvUrl);
     };
 
+    const handleViewAnalysis = (file: CV, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setViewAnalysis(file);
+    };
+
     // Format the date for display
     const formatDate = (dateString: string) => {
         const date = new Date(dateString)
         return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
     }
+
+    const analyzeCV = async (file: CV) => {
+        if (!file.path) {
+            toast.error("No CV URL available for this entry");
+            return;
+        }
+
+        // Set analyzing state for this CV
+        setAnalyzingUrlCVs(prev => ({ ...prev, [file.id]: true }));
+
+        try {
+            // Call the analyze-cv-url endpoint
+            const response = await fetch('/api/analyze-cv-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    url: file.path,
+                    id: file.id,
+                    filename: file.filename
+                })
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to analyze CV');
+            }
+
+            const result = await response.json();
+
+            // Update the file with analysis results
+            const updatedFile = {
+                ...file,
+                analyzed: true,
+                tags: [...(file.tags || []), ...(result.tags || [])],
+                originalCvPath: result.originalTextPath,
+                cv: result.fixedTextPath,
+                parsedCV: result.parsedCV
+            };
+
+            // Update the file in the list
+            setResumeFiles(prev =>
+                prev.map(f => f.id === file.id ? updatedFile : f)
+            );
+
+            toast.success(`Successfully analyzed CV for ${file.filename}`);
+        } catch (error: any) {
+            console.error('Error analyzing CV from URL:', error);
+            toast.error(error.message || "Failed to analyze CV. Please try again.");
+        } finally {
+            // Clear analyzing state for this CV
+            setAnalyzingUrlCVs(prev => ({ ...prev, [file.id]: false }));
+        }
+    };
 
     return (
         <div className="space-y-6">
@@ -439,19 +489,59 @@ export default function ResumeView() {
                                 </div>
                             </CardContent>
                             <CardFooter className="p-2 pt-0">
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="w-full text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-                                    onClick={(e) => handleViewFile(file, e)}
-                                    disabled={!file.path}
-                                >
-                                    <div className="flex items-center">
-                                        <Eye className="h-4 w-4 mr-1" />
-                                        <span>{file.path ? "View CV" : "No CV Available"}</span>
-                                        {file.path && <Maximize2 className="h-3 w-3 ml-1" />}
-                                    </div>
-                                </Button>
+                                <div className="w-full flex gap-1">
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="flex-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
+                                        onClick={(e) => handleViewFile(file, e)}
+                                        disabled={!file.path}
+                                    >
+                                        <div className="flex items-center">
+                                            <Eye className="h-4 w-4 mr-1" />
+                                            <span>View CV</span>
+                                        </div>
+                                    </Button>
+
+                                    {file.analyzed ? (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex-1 text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
+                                            onClick={(e) => handleViewAnalysis(file, e)}
+                                        >
+                                            <div className="flex items-center">
+                                                <FileText className="h-4 w-4 mr-1" />
+                                                <span>Analysis</span>
+                                            </div>
+                                        </Button>
+                                    ) : file.path ? (
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="flex-1 text-orange-600 hover:text-orange-800 hover:bg-orange-50 transition-colors"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                analyzeCV(file);
+                                            }}
+                                            disabled={analyzingUrlCVs[file.id]}
+                                        >
+                                            <div className="flex items-center">
+                                                {analyzingUrlCVs[file.id] ? (
+                                                    <>
+                                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                                        <span>Analyzing...</span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <FileText className="h-4 w-4 mr-1" />
+                                                        <span>Analyze</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </Button>
+                                    ) : null}
+                                </div>
                             </CardFooter>
                         </Card>
                     ))}
@@ -548,6 +638,124 @@ export default function ResumeView() {
                                     </div>
                                 )}
                             </div>
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+            {/* Analysis Results Dialog */}
+            <Dialog open={viewAnalysis !== null} onOpenChange={(open) => !open && setViewAnalysis(null)}>
+                <DialogContent className="max-w-5xl w-[95vw] h-[90vh] max-h-[90vh] p-4 overflow-hidden flex flex-col">
+                    <DialogHeader className="pb-2 flex-shrink-0">
+                        <DialogTitle className="text-xl">Analysis Results: {viewAnalysis?.filename}</DialogTitle>
+                    </DialogHeader>
+
+                    <div className="flex-grow overflow-auto">
+                        {viewAnalysis && (
+                            <Tabs defaultValue="tags">
+                                <TabsList className="mb-4">
+                                    <TabsTrigger value="tags">Tags & Categories</TabsTrigger>
+                                    <TabsTrigger value="ocr">OCR Text</TabsTrigger>
+                                    <TabsTrigger value="enhanced">Enhanced CV</TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="tags" className="h-full overflow-auto">
+                                    <div className="space-y-4">
+                                        <Card>
+                                            <CardHeader>
+                                                <h3 className="text-md font-medium">Tags</h3>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {viewAnalysis.tags && viewAnalysis.tags.length > 0 ? (
+                                                        viewAnalysis.tags.map((tag, i) => (
+                                                            <Badge key={i} variant="outline" className="bg-blue-50">
+                                                                {tag}
+                                                            </Badge>
+                                                        ))
+                                                    ) : (
+                                                        <p className="text-muted-foreground">No tags found</p>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+
+                                        <Card>
+                                            <CardHeader>
+                                                <h3 className="text-md font-medium">Candidate Details</h3>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    {viewAnalysis.email && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Email</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.email}</p>
+                                                        </div>
+                                                    )}
+                                                    {viewAnalysis.phone && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Phone</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.phone}</p>
+                                                        </div>
+                                                    )}
+                                                    {viewAnalysis.birthdate && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Birthdate</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.birthdate}</p>
+                                                        </div>
+                                                    )}
+                                                    {viewAnalysis.age && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Age</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.age}</p>
+                                                        </div>
+                                                    )}
+                                                    {viewAnalysis.department && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Department</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.department}</p>
+                                                        </div>
+                                                    )}
+                                                    {viewAnalysis.expectedSalary && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Expected Salary</p>
+                                                            <p className="text-sm text-muted-foreground">{viewAnalysis.expectedSalary}</p>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </div>
+                                </TabsContent>
+
+                                <TabsContent value="ocr" className="h-full overflow-auto">
+                                    <Card>
+                                        <CardContent className="p-4">
+                                            {viewAnalysis.originalCvPath ? (
+                                                <div className="max-h-[60vh] overflow-auto p-4 bg-gray-50 rounded-md font-mono text-sm whitespace-pre-wrap">
+                                                    <FetchTextContent path={viewAnalysis.originalCvPath} />
+                                                </div>
+                                            ) : (
+                                                <p className="text-muted-foreground">Original OCR text not available</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+
+                                <TabsContent value="enhanced" className="h-full overflow-auto">
+                                    <Card>
+                                        <CardContent className="p-4">
+                                            {viewAnalysis.cv ? (
+                                                <div className="max-h-[60vh] overflow-auto p-4 bg-gray-50 rounded-md font-mono text-sm whitespace-pre-wrap">
+                                                    <FetchTextContent path={viewAnalysis.cv} />
+                                                </div>
+                                            ) : (
+                                                <p className="text-muted-foreground">Enhanced CV text not available</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                </TabsContent>
+                            </Tabs>
                         )}
                     </div>
                 </DialogContent>

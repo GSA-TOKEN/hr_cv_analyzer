@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { extractTextFromFile } from '@/utils/ocr';
+import { fixCV } from '@/utils/openai-cv-fixer';
+import { parseCV, convertParsedCVToTags } from '@/utils/openai-cv-parser';
 
 export interface CV {
     id: string;
@@ -16,8 +19,9 @@ export interface CV {
     phone?: string;
     birthdate?: string;
     expectedSalary?: string;
-    cv?: string;
-    originalCvPath?: string;
+    cv?: string; // Path to the fixed CV text file
+    originalCvPath?: string; // Path to the original extracted CV text
+    parsedData?: any; // Structured data from OpenAI parsing
 }
 
 class CVStore {
@@ -37,7 +41,14 @@ class CVStore {
         const files = fs.readdirSync(this.cvFolder);
 
         files.forEach(filename => {
-            if (filename.endsWith('.pdf')) {
+            // Only process main CV files (not the _original.txt and _fixed.txt files)
+            if (filename.endsWith('.pdf') ||
+                filename.endsWith('.jpg') ||
+                filename.endsWith('.jpeg') ||
+                filename.endsWith('.png') ||
+                filename.endsWith('.tiff') ||
+                filename.endsWith('.docx')) {
+
                 const stats = fs.statSync(path.join(this.cvFolder, filename));
                 const cv: CV = {
                     id: uuidv4(),
@@ -100,7 +111,21 @@ class CVStore {
         if (!cv) return false;
 
         try {
-            fs.unlinkSync(cv.path);
+            // Delete the main CV file
+            if (fs.existsSync(cv.path)) {
+                fs.unlinkSync(cv.path);
+            }
+
+            // Delete original extracted text file if exists
+            if (cv.originalCvPath && fs.existsSync(cv.originalCvPath)) {
+                fs.unlinkSync(cv.originalCvPath);
+            }
+
+            // Delete fixed CV text file if exists
+            if (cv.cv && fs.existsSync(cv.cv)) {
+                fs.unlinkSync(cv.cv);
+            }
+
             this.cvs.delete(id);
             return true;
         } catch (error) {
@@ -109,27 +134,60 @@ class CVStore {
         }
     }
 
-    analyzeCV(id: string): Promise<CV> {
-        return new Promise((resolve, reject) => {
-            const cv = this.cvs.get(id);
-            if (!cv) {
-                reject(new Error('CV not found'));
-                return;
+    async analyzeCV(id: string): Promise<CV> {
+        const cv = this.cvs.get(id);
+        if (!cv) {
+            throw new Error('CV not found');
+        }
+
+        try {
+            // Extract text using OCR
+            const extractedText = await extractTextFromFile(cv.path);
+
+            // Save the original text to a text file
+            const originalTextPath = path.join(this.cvFolder, `${id}_original.txt`);
+            fs.writeFileSync(originalTextPath, extractedText);
+
+            // Fix CV with OpenAI
+            const fixedCVText = await fixCV(extractedText);
+
+            // Save the fixed text to a text file
+            const fixedTextPath = path.join(this.cvFolder, `${id}_fixed.txt`);
+            fs.writeFileSync(fixedTextPath, fixedCVText);
+
+            // Parse the CV using OpenAI
+            const parsedCV = await parseCV(fixedCVText);
+
+            // Convert parsed CV to tags
+            const tags = convertParsedCVToTags(parsedCV);
+
+            // Update CV
+            const updatedCV: CV = {
+                ...cv,
+                analyzed: true,
+                originalCvPath: originalTextPath,
+                cv: fixedTextPath,
+                tags: [...(cv.tags || []), ...tags],
+                parsedData: parsedCV
+            };
+
+            // If age is present in parsedCV, update it
+            if (parsedCV.Age) {
+                const ageMatch = parsedCV.Age.match(/(\d+)[-+]/);
+                if (ageMatch) {
+                    const age = parseInt(ageMatch[1]);
+                    if (!isNaN(age)) {
+                        updatedCV.age = age;
+                    }
+                }
             }
 
-            // In a real implementation, this would send the CV to an AI service for analysis
-            // For now, we'll just mark it as analyzed with some example tags
-            setTimeout(() => {
-                const updatedCV = {
-                    ...cv,
-                    analyzed: true,
-                    tags: ['JavaScript', 'React', 'Frontend', 'Experience: 3-5 years']
-                };
-
-                this.cvs.set(id, updatedCV);
-                resolve(updatedCV);
-            }, 1000); // Simulate analysis taking 1 second
-        });
+            this.cvs.set(id, updatedCV);
+            return updatedCV;
+        } catch (error) {
+            console.error('Error analyzing CV:', error);
+            throw error;
+        }
     }
 
     updateCVTags(id: string, tags: string[]): CV | undefined {
@@ -152,20 +210,20 @@ class CVStore {
         // Determine age range tag
         let ageRangeTag = '';
         if (age < 18) {
-            ageRangeTag = '18- Years';
+            ageRangeTag = '18-under';
         } else if (age <= 22) {
-            ageRangeTag = '18-22 Years';
+            ageRangeTag = '18-22';
         } else if (age <= 28) {
-            ageRangeTag = '23-28 Years';
+            ageRangeTag = '23-28';
         } else if (age <= 35) {
-            ageRangeTag = '29-35 Years';
+            ageRangeTag = '28-35';
         } else if (age <= 45) {
-            ageRangeTag = '36-45 Years';
+            ageRangeTag = '36-45';
         } else {
-            ageRangeTag = '46+ Years';
+            ageRangeTag = '46+';
         }
 
-        const formattedAgeRangeTag = `age:${ageRangeTag.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`;
+        const formattedAgeRangeTag = `age:${ageRangeTag.toLowerCase()}`;
 
         const updatedCV = {
             ...cv,

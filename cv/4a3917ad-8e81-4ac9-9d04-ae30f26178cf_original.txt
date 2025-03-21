@@ -1,0 +1,1 @@
+PDF text extraction failed on server. Please use client-side extraction or install pdf-parse.

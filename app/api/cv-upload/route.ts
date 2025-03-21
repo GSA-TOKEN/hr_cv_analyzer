@@ -3,10 +3,13 @@ import { cvStore } from '@/lib/cv-store';
 import { join } from 'path';
 import { writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
+import { extractTextFromFile } from '@/utils/ocr';
+import { fixCV } from '@/utils/openai-cv-fixer';
+import { parseCV, convertParsedCVToTags } from '@/utils/openai-cv-parser';
 
 // Helper function to validate file type
 function isValidFileType(fileName: string) {
-    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff'];
+    const allowedExtensions = ['.pdf', '.jpg', '.jpeg', '.png', '.tiff', '.docx', '.doc', '.txt'];
     const ext = fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
     return allowedExtensions.includes(ext);
 }
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
                     return {
                         name: fileName,
                         success: false,
-                        error: 'Invalid file type. Only PDF, JPG, JPEG, PNG, and TIFF files are allowed.',
+                        error: 'Invalid file type. Only PDF, image, Word documents and text files are allowed.',
                     };
                 }
 
@@ -52,29 +55,50 @@ export async function POST(request: NextRequest) {
                     await writeFile(filePath, buffer);
 
                     // Add to CV store
-                    const cv = {
-                        id: Date.now().toString(),
-                        filename: fileName,
-                        uploadDate: new Date().toISOString(),
-                        analyzed: false,
-                        path: filePath,
-                        tags: []
-                    };
-
-                    // Register the CV in the store
                     const addedCV = await cvStore.addCV(new File([buffer], fileName));
+
+                    // Extract text using OCR
+                    const extractedText = await extractTextFromFile(filePath);
+
+                    // Save the original text to a text file
+                    const originalTextPath = join(cvDir, `${addedCV.id}_original.txt`);
+                    await writeFile(originalTextPath, extractedText);
+
+                    // Fix CV with OpenAI
+                    const fixedCVText = await fixCV(extractedText);
+
+                    // Save the fixed text to a text file
+                    const fixedTextPath = join(cvDir, `${addedCV.id}_fixed.txt`);
+                    await writeFile(fixedTextPath, fixedCVText);
+
+                    // Parse the CV using OpenAI
+                    const parsedCV = await parseCV(fixedCVText);
+
+                    // Convert parsed CV to tags
+                    const tags = convertParsedCVToTags(parsedCV);
+
+                    // Update CV with tags
+                    const updatedCV = cvStore.updateCVTags(addedCV.id, tags);
+
+                    // Update CV with additional data
+                    if (updatedCV) {
+                        updatedCV.analyzed = true;
+                        updatedCV.originalCvPath = originalTextPath;
+                        updatedCV.cv = fixedTextPath;
+                    }
 
                     return {
                         name: fileName,
                         success: true,
-                        cv: addedCV
+                        cv: updatedCV || addedCV,
+                        tags
                     };
-                } catch (error) {
+                } catch (error: any) {
                     console.error(`Error processing file ${fileName}:`, error);
                     return {
                         name: fileName,
                         success: false,
-                        error: 'Failed to process file'
+                        error: 'Failed to process file: ' + error.message
                     };
                 }
             })
@@ -83,10 +107,10 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
             files: results
         });
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error in CV upload:', error);
         return NextResponse.json(
-            { error: 'Internal server error during upload' },
+            { error: 'Internal server error during upload: ' + error.message },
             { status: 500 }
         );
     }

@@ -1,0 +1,50 @@
+**MEHMET KURU**  
+Mobile Developer  
+mehmetkuru0777@gmail.com  
+(534)-777-1441  
+[LinkedIn](https://www.linkedin.com/in/mehmet-kuru-18055918b/)  
+[GitHub](https://github.com/kuru0777)  
+
+---
+
+**EXPERIENCE**
+
+**October 2024 – December 2024**  
+**Software Intern, Bilnex Software**  
+- Participated in troubleshooting and maintenance processes for applications such as Mobilnex, Bilnex Auto Service, and Bilnex Restaurant using Flutter and .NET.  
+- Conducted real-time data communication and integration projects using socket technology.
+
+**July 2023 – September 2023**  
+**Software Intern, Softalya Software**  
+- Received training in React Native and contributed to the mobile application development process as part of a 5-member team.
+
+---
+
+**PROJECTS**
+
+- Developed a facial recognition application using Flutter, based on Google ML Kit and FaceNet. This application successfully performs functions such as user face registration, recognition, and authentication. It also includes real-time face analysis and data management features.
+
+---
+
+**EDUCATION**
+
+**September 2020 – February 2025**  
+Bachelor's Degree in Software Engineering  
+Burdur Mehmet Akif Ersoy University
+
+---
+
+**SKILLS**
+
+- Flutter
+- TypeScript
+- HTML, CSS
+- Firebase
+- React Native
+- Node.js
+- Java
+- MSSQL
+- Python
+- JavaScript
+- MongoDB
+- .NET
