@@ -463,7 +463,7 @@ export default function ResumeView() {
                                         </div>
                                     </Button>
 
-                                    {file.analyzed ? (
+                                    {file.analyzed && (
                                         <Button
                                             variant="ghost"
                                             size="sm"
@@ -475,32 +475,7 @@ export default function ResumeView() {
                                                 <span>Analysis</span>
                                             </div>
                                         </Button>
-                                    ) : file.path ? (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="flex-1 text-orange-600 hover:text-orange-800 hover:bg-orange-50 transition-colors"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                analyzeCV(file);
-                                            }}
-                                            disabled={analyzingUrlCVs[file.id]}
-                                        >
-                                            <div className="flex items-center">
-                                                {analyzingUrlCVs[file.id] ? (
-                                                    <>
-                                                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                                                        <span>Analyzing...</span>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FileText className="h-4 w-4 mr-1" />
-                                                        <span>Analyze</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                        </Button>
-                                    ) : null}
+                                    )}
                                 </div>
                             </CardFooter>
                         </Card>
