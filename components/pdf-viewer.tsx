@@ -89,6 +89,7 @@ export default function PDFViewer({ fileUrl }: PDFViewerProps) {
         const style = {
             transform: `scale(${zoom}) rotate(${rotation}deg)`,
             transition: 'transform 0.3s ease',
+            transformOrigin: 'center center',
         };
 
         if (fileType === 'image') {
@@ -99,91 +100,128 @@ export default function PDFViewer({ fileUrl }: PDFViewerProps) {
                         alt="Document preview"
                         className="max-w-full max-h-full object-contain"
                         style={style}
-                        onError={() => setHasError(true)}
+                    />
+                </div>
+            );
+        }
+
+        if (fileType === 'pdf') {
+            return (
+                <div className="h-full w-full flex items-center justify-center bg-gray-100 overflow-auto">
+                    <iframe
+                        src={fileUrl}
+                        className="w-full h-full border-0"
+                        style={style}
                     />
                 </div>
             );
         }
 
         return (
-            <iframe
-                src={fileUrl}
-                className="w-full h-full"
-                style={{ border: 'none', ...style }}
-            />
+            <div className="h-full w-full flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <p className="text-gray-500">Unsupported file type</p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                        onClick={openDirectInNewTab}
+                    >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open in new tab
+                    </Button>
+                </div>
+            </div>
         );
     };
 
+    if (isLoading) {
+        return (
+            <div className="h-full w-full flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <RefreshCw className="h-8 w-8 animate-spin mx-auto text-gray-400" />
+                    <p className="mt-2 text-gray-500">Loading document...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (hasError) {
+        return (
+            <div className="h-full w-full flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <p className="text-red-500 mb-2">{errorMessage}</p>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={retryLoading}
+                    >
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Retry
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex flex-col h-full w-full">
-            {isLoading ? (
-                <div className="flex items-center justify-center h-full">
-                    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="h-full w-full flex flex-col">
+            <div className="flex items-center justify-between p-2 border-b">
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={zoomOut}
+                        disabled={zoom <= 0.5}
+                    >
+                        <ZoomOut className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={resetZoom}
+                        disabled={zoom === 1}
+                    >
+                        {Math.round(zoom * 100)}%
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={zoomIn}
+                        disabled={zoom >= 3}
+                    >
+                        <ZoomIn className="h-4 w-4" />
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={rotate}
+                    >
+                        <RotateCw className="h-4 w-4" />
+                    </Button>
                 </div>
-            ) : hasError ? (
-                <div className="bg-red-50 text-red-800 p-4 rounded text-center flex flex-col items-center">
-                    <p className="font-medium">Error loading file</p>
-                    {errorMessage && (
-                        <p className="text-sm mt-2 max-w-md overflow-auto">{errorMessage}</p>
-                    )}
-                    <p className="text-sm mt-2">This may be due to special characters in the filename or external URL restrictions.</p>
-                    <div className="mt-4 flex flex-col sm:flex-row gap-2">
-                        <Button onClick={retryLoading} variant="outline" className="flex gap-1 items-center">
-                            <RefreshCw className="w-4 h-4 mr-1" /> Retry
-                        </Button>
-                        <Button onClick={openDirectInNewTab} variant="outline" className="flex gap-1 items-center">
-                            <ExternalLink className="w-4 h-4 mr-1" /> Open in browser
-                        </Button>
-                    </div>
+                <div className="flex items-center space-x-2">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={openDirectInNewTab}
+                    >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Open in new tab
+                    </Button>
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(fileUrl, '_blank', 'download')}
+                    >
+                        <Download className="h-4 w-4 mr-2" />
+                        Download
+                    </Button>
                 </div>
-            ) : (
-                <div className="h-full w-full bg-slate-800 rounded relative">
-                    {renderContent()}
-                    <div className="absolute bottom-4 right-4 flex gap-2">
-                        <div className="flex gap-2 bg-white/20 p-1 rounded-lg backdrop-blur-sm">
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={zoomOut}
-                                className="hover:bg-white/20"
-                            >
-                                <ZoomOut className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={resetZoom}
-                                className="hover:bg-white/20"
-                            >
-                                {Math.round(zoom * 100)}%
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={zoomIn}
-                                className="hover:bg-white/20"
-                            >
-                                <ZoomIn className="h-4 w-4" />
-                            </Button>
-                            <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={rotate}
-                                className="hover:bg-white/20"
-                            >
-                                <RotateCw className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <Button
-                            size="sm"
-                            onClick={openDirectInNewTab}
-                            className="bg-white/20 hover:bg-white/30 backdrop-blur-sm"
-                        >
-                            <Download className="h-4 w-4 mr-1" /> Download
-                        </Button>
-                    </div>
-                </div>
-            )}
+            </div>
+            <div className="flex-1 overflow-hidden">
+                {renderContent()}
+            </div>
         </div>
     );
 } 

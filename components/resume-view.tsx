@@ -335,18 +335,17 @@ export default function ResumeView() {
         return (
             <Card
                 key={cv.id}
-                className={`relative ${selectedFiles.includes(cv.id) ? 'ring-2 ring-primary' : ''
-                    }`}
+                className={`relative ${selectedFiles.includes(cv.id) ? 'ring-2 ring-primary' : ''}`}
                 onClick={() => toggleFileSelection(cv.id)}
             >
                 <CardHeader className="pb-2">
                     <div className="flex justify-between items-start">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                                <FileText className="h-4 w-4 text-muted-foreground" />
-                                <h3 className="font-medium">{cv.filename}</h3>
+                                <FileText className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                                <h3 className="font-medium truncate">{cv.filename}</h3>
                             </div>
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 truncate">
                                 Uploaded on {formatDate(cv.uploadDate)}
                             </div>
                         </div>
@@ -354,9 +353,9 @@ export default function ResumeView() {
                 </CardHeader>
                 <CardContent className="pb-2">
                     {cv.fileId ? (
-                        <div className="flex flex-wrap gap-1">
+                        <div className="flex flex-wrap gap-1 min-w-0">
                             {cv.tags?.slice(0, 3).map((tag, index) => (
-                                <Badge key={index} variant="secondary">
+                                <Badge key={index} variant="secondary" className="truncate max-w-[150px]">
                                     {tag}
                                 </Badge>
                             ))}
