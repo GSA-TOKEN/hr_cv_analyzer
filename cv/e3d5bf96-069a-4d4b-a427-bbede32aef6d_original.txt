@@ -1,1 +1,0 @@
-PDF text extraction encountered an issue: All PDF extraction methods failed. Please try using a different PDF file.

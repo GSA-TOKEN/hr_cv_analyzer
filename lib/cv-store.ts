@@ -26,7 +26,7 @@ export interface CV {
 
 class CVStore {
     private cvs: Map<string, CV> = new Map();
-    private cvFolder: string = path.join(process.cwd(), 'cv');
+    private cvFolder: string = path.join(process.cwd(), 'cv_store');
 
     constructor() {
         this.loadExistingCVs();
@@ -51,11 +51,11 @@ class CVStore {
 
                 const stats = fs.statSync(path.join(this.cvFolder, filename));
                 const cv: CV = {
-                    id: uuidv4(),
+                    id: filename,
                     filename,
                     uploadDate: stats.mtime.toISOString(),
                     analyzed: false,
-                    path: path.join(this.cvFolder, filename),
+                    path: `/api/cv-store/${encodeURIComponent(filename)}`, // URL encode the filename
                     tags: []
                 };
                 this.cvs.set(cv.id, cv);
@@ -73,8 +73,9 @@ class CVStore {
 
     addCV(file: File): Promise<CV> {
         return new Promise((resolve, reject) => {
-            const id = uuidv4();
-            const filename = file.name;
+            // Sanitize the filename to handle special characters
+            const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const id = filename; // Use sanitized filename as ID
 
             // Create destination path
             const filePath = path.join(this.cvFolder, filename);
@@ -94,7 +95,7 @@ class CVStore {
                             filename,
                             uploadDate: new Date().toISOString(),
                             analyzed: false,
-                            path: filePath,
+                            path: `/api/cv-store/${encodeURIComponent(filename)}`, // URL encode the filename
                             tags: []
                         };
 
@@ -111,19 +112,24 @@ class CVStore {
         if (!cv) return false;
 
         try {
+            // Get the actual file path from the cv_store folder
+            const filePath = path.join(this.cvFolder, cv.filename);
+
             // Delete the main CV file
-            if (fs.existsSync(cv.path)) {
-                fs.unlinkSync(cv.path);
+            if (fs.existsSync(filePath)) {
+                fs.unlinkSync(filePath);
             }
 
             // Delete original extracted text file if exists
-            if (cv.originalCvPath && fs.existsSync(cv.originalCvPath)) {
-                fs.unlinkSync(cv.originalCvPath);
+            const originalTextPath = path.join(this.cvFolder, `${id}_original.txt`);
+            if (fs.existsSync(originalTextPath)) {
+                fs.unlinkSync(originalTextPath);
             }
 
             // Delete fixed CV text file if exists
-            if (cv.cv && fs.existsSync(cv.cv)) {
-                fs.unlinkSync(cv.cv);
+            const fixedTextPath = path.join(this.cvFolder, `${id}_fixed.txt`);
+            if (fs.existsSync(fixedTextPath)) {
+                fs.unlinkSync(fixedTextPath);
             }
 
             this.cvs.delete(id);

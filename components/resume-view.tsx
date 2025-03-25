@@ -32,71 +32,34 @@ export default function ResumeView() {
     const fetchCVs = async () => {
         setIsLoading(true)
         try {
-            // Use the external API endpoint
-            const apiUrl = 'https://ikv1api.gsadev.site/api/ikforms/list/new/default/';
-
-            const response = await fetch(apiUrl)
+            // Use the local CV store
+            const response = await fetch('/api/cv-store')
             if (!response.ok) {
                 throw new Error('Failed to fetch CVs')
             }
 
             const data = await response.json()
-
-            // The API response has record_list that contains the array of applications
-            if (!data.record_list) {
-                throw new Error('API response is missing record_list')
-            }
-
-            // Map the API response record_list items to CV format
-            const mappedCVs = data.record_list.map((record: any) => {
-                // Format the CV path properly
-                let cvPath = '';
-                if (record.cv) {
-                    // Use the new URL format provided
-                    if (record.cv.startsWith('http')) {
-                        // If it's already a full URL, extract just the filename part
-                        const pathParts = record.cv.split('/');
-                        const filename = pathParts[pathParts.length - 1];
-                        cvPath = `https://ikv1.gsadev.site/uploads/${filename}`;
-                    } else {
-                        // If it's a relative path, extract just the filename part
-                        const pathParts = record.cv.split('/');
-                        const filename = pathParts[pathParts.length - 1];
-                        cvPath = `https://ikv1.gsadev.site/uploads/${filename}`;
-                    }
-                }
-
-                return {
-                    id: record.id.toString() || record.token || String(Math.random()),
-                    filename: record.name_surname || 'Unknown Applicant',
-                    uploadDate: record.created_at || record.updated_at || new Date().toISOString(),
-                    analyzed: !!record.analyzed,
-                    path: cvPath,
-                    tags: [
-                        record.application_department,
-                        record.application_type,
-                        record.city && `City: ${record.city}`,
-                        record.district && `District: ${record.district}`,
-                        record.wants_accommodation === "Evet" && "Wants Accommodation",
-                        record.driver_license === "Evet" && `Driver License: ${record.driver_license_type || 'Yes'}`
-                    ].filter(Boolean),
-                    age: getAgeFromBirthdate(record.birthdate),
-                    // Additional fields to display
-                    department: record.application_department,
-                    email: record.email,
-                    phone: record.phone_number,
-                    birthdate: record.birthdate,
-                    expectedSalary: record.expected_salary,
-                    // Store the original CV path
-                    originalCvPath: record.cv
-                }
-            });
+            const mappedCVs = data.map((cv: any) => ({
+                id: cv.id,
+                filename: cv.filename,
+                uploadDate: cv.uploadDate,
+                analyzed: cv.analyzed,
+                path: cv.path,
+                tags: cv.tags || [],
+                age: cv.age,
+                department: cv.department,
+                email: cv.email,
+                phone: cv.phone,
+                birthdate: cv.birthdate,
+                expectedSalary: cv.expectedSalary,
+                originalCvPath: cv.originalCvPath
+            }))
 
             setResumeFiles(mappedCVs)
-            console.log('Fetched CVs from external API:', mappedCVs);
+            console.log('Fetched CVs from local store:', mappedCVs)
         } catch (error) {
             console.error('Error fetching CVs:', error)
-            toast.error("Failed to load resume files from external API");
+            toast.error("Failed to load resume files from local store")
         } finally {
             setIsLoading(false)
         }
@@ -260,11 +223,8 @@ export default function ResumeView() {
         e.stopPropagation();
         setViewFile(file);
 
-        // Create a URL for the CV file
-        // Check if we have a direct file path from the API
-        const cvUrl = file.path
-            ? file.path
-            : `/api/serve-cv/${encodeURIComponent(file.filename)}`;
+        // Create a URL for the CV file using the local API endpoint
+        const cvUrl = `/api/cv-store/${file.id}`;
 
         // Log the URL to console for debugging
         console.log("Opening CV URL:", cvUrl);
