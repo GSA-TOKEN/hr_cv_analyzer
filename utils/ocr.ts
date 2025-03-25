@@ -5,6 +5,7 @@ import fs from 'fs';
 import { promises as fsPromises } from 'fs';
 import path from 'path';
 import { setupPdfWorker } from './pdf-worker-setup';
+import { getDocument } from 'pdfjs-dist';
 
 // Setup PDF.js worker
 setupPdfWorker();
@@ -324,5 +325,35 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     } catch (error: any) {
         console.error('Error extracting text from URL:', error);
         return `Failed to extract text from URL: ${error.message}. Please check if the URL is accessible and points to a supported file format.`;
+    }
+}
+
+export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
+    const worker = await createWorker();
+    let text = '';
+
+    try {
+        // First, try to extract text as PDF
+        try {
+            const data = new Uint8Array(buffer);
+            const pdf = await getDocument({ data }).promise;
+            const numPages = pdf.numPages;
+
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                text += content.items.map((item: any) => item.str).join(' ') + '\n';
+            }
+        } catch (error) {
+            // If PDF extraction fails, try OCR
+            await worker.loadLanguage('eng');
+            await worker.initialize('eng');
+            const result = await worker.recognize(buffer);
+            text = result.data.text;
+        }
+
+        return cleanTextForOpenAI(text);
+    } finally {
+        await worker.terminate();
     }
 }

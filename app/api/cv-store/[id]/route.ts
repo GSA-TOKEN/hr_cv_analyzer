@@ -1,20 +1,9 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cvStore } from '@/lib/cv-store'
-import fs from 'fs'
-import path from 'path'
 
-export async function GET(
-    request: Request,
-    context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
     try {
-        // Await the params object
-        const { id } = await context.params;
-
-        // Decode the URL-encoded ID
-        const decodedId = decodeURIComponent(id);
-        const cv = cvStore.getCV(decodedId);
-
+        const cv = await cvStore.getCV(params.id)
         if (!cv) {
             return NextResponse.json(
                 { error: 'CV not found' },
@@ -22,57 +11,33 @@ export async function GET(
             )
         }
 
-        // Get the actual file path from the cv_store folder
-        const filePath = path.join(process.cwd(), 'cv_store', cv.filename)
+        const fileBuffer = await cvStore.getCVFile(params.id)
+        const contentType = cv.filename.endsWith('.pdf') ? 'application/pdf' : 'application/octet-stream'
 
-        // Check if file exists
-        if (!fs.existsSync(filePath)) {
-            return NextResponse.json(
-                { error: 'CV file not found' },
-                { status: 404 }
-            )
-        }
-
-        // Read the file
-        const fileBuffer = fs.readFileSync(filePath)
-        const fileType = path.extname(filePath).toLowerCase()
-
-        // Set appropriate content type
-        let contentType = 'application/octet-stream'
-        switch (fileType) {
-            case '.pdf':
-                contentType = 'application/pdf'
-                break
-            case '.doc':
-            case '.docx':
-                contentType = 'application/msword'
-                break
-            case '.jpg':
-            case '.jpeg':
-                contentType = 'image/jpeg'
-                break
-            case '.png':
-                contentType = 'image/png'
-                break
-            case '.tiff':
-                contentType = 'image/tiff'
-                break
-        }
-
-        // Encode the filename for Content-Disposition header
-        const encodedFilename = encodeURIComponent(cv.filename)
-
-        // Return the file with appropriate headers
         return new NextResponse(fileBuffer, {
             headers: {
                 'Content-Type': contentType,
-                'Content-Disposition': `inline; filename*=UTF-8''${encodedFilename}`,
+                'Content-Disposition': `inline; filename="${cv.filename}"`,
+                'Cache-Control': 'public, max-age=31536000', // Cache for 1 year
             },
         })
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error serving CV file:', error)
         return NextResponse.json(
             { error: 'Failed to serve CV file' },
+            { status: 500 }
+        )
+    }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+    try {
+        await cvStore.deleteCV(params.id)
+        return NextResponse.json({ success: true })
+    } catch (error: any) {
+        console.error('Error deleting CV:', error)
+        return NextResponse.json(
+            { error: 'Failed to delete CV' },
             { status: 500 }
         )
     }

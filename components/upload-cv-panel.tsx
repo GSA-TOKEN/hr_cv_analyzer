@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Progress } from "@/components/ui/progress"
 import { uploadAndAnalyzeCV } from "@/lib/api"
+import { toast } from "sonner"
 
 export default function UploadCVPanel() {
   const [files, setFiles] = useState<File[]>([])
@@ -18,6 +19,7 @@ export default function UploadCVPanel() {
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "success" | "error">("idle")
   const [errorMessage, setErrorMessage] = useState("")
   const [successCount, setSuccessCount] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -34,33 +36,39 @@ export default function UploadCVPanel() {
     if (files.length === 0) return
 
     setUploading(true)
-    setUploadProgress(0)
+    setError(null)
     setUploadStatus("uploading")
-    setErrorMessage("")
 
     try {
-      let processed = 0
-      let successful = 0
+      const formData = new FormData()
+      files.forEach((file) => {
+        formData.append('file', file)
+      })
 
-      for (const file of files) {
-        try {
-          await uploadAndAnalyzeCV(file)
-          successful++
-        } catch (error) {
-          console.error(`Error processing ${file.name}:`, error)
-        }
+      const response = await fetch('/api/cv-store', {
+        method: 'POST',
+        body: formData,
+      })
 
-        processed++
-        setUploadProgress(Math.round((processed / files.length) * 100))
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to upload files')
       }
 
-      setSuccessCount(successful)
-      setUploadStatus("success")
+      const result = await response.json()
+      console.log('Upload successful:', result)
+
+      // Clear files after successful upload
       setFiles([])
+      setUploadStatus("success")
+      setSuccessCount(files.length)
+      toast.success('Files uploaded successfully')
     } catch (error) {
-      console.error("Upload error:", error)
+      console.error('Error uploading files:', error)
+      setError(error instanceof Error ? error.message : 'Failed to upload files')
       setUploadStatus("error")
-      setErrorMessage("An error occurred during upload. Please try again.")
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload files')
+      toast.error('Failed to upload files')
     } finally {
       setUploading(false)
     }

@@ -1,246 +1,248 @@
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
-import { extractTextFromFile } from '@/utils/ocr';
-import { fixCV } from '@/utils/openai-cv-fixer';
-import { parseCV, convertParsedCVToTags } from '@/utils/openai-cv-parser';
+import { connectDB } from './mongodb';
+import { uploadFile, getFileFromGridFS, deleteFileFromGridFS, getFileMetadata } from './mongodb-storage';
+import CV from '@/models/CV';
 
-export interface CV {
+export interface ICV {
     id: string;
     filename: string;
-    uploadDate: string;
+    uploadDate: Date;
     analyzed: boolean;
-    path: string;
-    tags?: string[];
+    fileId: string;
+    tags: string[];
     age?: number;
-    // Additional fields for the API integration
     department?: string;
     email?: string;
     phone?: string;
     birthdate?: string;
-    expectedSalary?: string;
-    cv?: string; // Path to the fixed CV text file
-    originalCvPath?: string; // Path to the original extracted CV text
-    parsedData?: any; // Structured data from OpenAI parsing
+    expectedSalary?: number;
+    originalTextFileId?: string;
+    enhancedTextFileId?: string;
+    parsedData?: any;
+    analysis?: {
+        languages: Array<{ name: string; level: string }>;
+        education: Array<{ school: string; degree: string; year: number }>;
+        experience: Array<{ company: string; position: string; duration: string }>;
+        technicalSkills: string[];
+        softSkills: string[];
+        certifications: string[];
+    };
 }
 
 class CVStore {
-    private cvs: Map<string, CV> = new Map();
-    private cvFolder: string = path.join(process.cwd(), 'cv_store');
+    private static instance: CVStore;
+    private initialized: boolean = false;
 
-    constructor() {
-        this.loadExistingCVs();
-    }
+    private constructor() { }
 
-    private loadExistingCVs() {
-        if (!fs.existsSync(this.cvFolder)) {
-            fs.mkdirSync(this.cvFolder, { recursive: true });
-            return;
+    public static getInstance(): CVStore {
+        if (!CVStore.instance) {
+            CVStore.instance = new CVStore();
         }
-
-        const files = fs.readdirSync(this.cvFolder);
-
-        files.forEach(filename => {
-            // Only process main CV files (not the _original.txt and _fixed.txt files)
-            if (filename.endsWith('.pdf') ||
-                filename.endsWith('.jpg') ||
-                filename.endsWith('.jpeg') ||
-                filename.endsWith('.png') ||
-                filename.endsWith('.tiff') ||
-                filename.endsWith('.docx')) {
-
-                const stats = fs.statSync(path.join(this.cvFolder, filename));
-                const cv: CV = {
-                    id: filename,
-                    filename,
-                    uploadDate: stats.mtime.toISOString(),
-                    analyzed: false,
-                    path: `/api/cv-store/${encodeURIComponent(filename)}`, // URL encode the filename
-                    tags: []
-                };
-                this.cvs.set(cv.id, cv);
-            }
-        });
+        return CVStore.instance;
     }
 
-    getCVs(): CV[] {
-        return Array.from(this.cvs.values());
+    private async ensureInitialized() {
+        if (!this.initialized) {
+            await connectDB();
+            this.initialized = true;
+        }
     }
 
-    getCV(id: string): CV | undefined {
-        return this.cvs.get(id);
+    async getCVs(): Promise<ICV[]> {
+        await this.ensureInitialized();
+        console.log('Fetching CVs from MongoDB...');
+        const cvs = await CV.find().sort({ uploadDate: -1 });
+        console.log(`Found ${cvs.length} CVs in database`);
+        return cvs.map(cv => ({
+            id: cv._id.toString(),
+            filename: cv.filename,
+            uploadDate: cv.uploadDate,
+            analyzed: cv.analyzed,
+            fileId: cv.fileId,
+            tags: cv.tags,
+            age: cv.age,
+            department: cv.department,
+            email: cv.email,
+            phone: cv.phone,
+            birthdate: cv.birthdate,
+            expectedSalary: cv.expectedSalary,
+            originalTextFileId: cv.originalTextFileId,
+            enhancedTextFileId: cv.enhancedTextFileId,
+            parsedData: cv.parsedData,
+            analysis: cv.analysis
+        }));
     }
 
-    addCV(file: File): Promise<CV> {
-        return new Promise((resolve, reject) => {
-            // Sanitize the filename to handle special characters
-            const filename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
-            const id = filename; // Use sanitized filename as ID
+    async getCV(id: string): Promise<ICV | null> {
+        await this.ensureInitialized();
+        const cv = await CV.findById(id);
+        if (!cv) return null;
 
-            // Create destination path
-            const filePath = path.join(this.cvFolder, filename);
-
-            // Create Buffer from file
-            file.arrayBuffer()
-                .then(buffer => {
-                    // Write file to disk
-                    fs.writeFile(filePath, Buffer.from(buffer), (err) => {
-                        if (err) {
-                            reject(err);
-                            return;
-                        }
-
-                        const cv: CV = {
-                            id,
-                            filename,
-                            uploadDate: new Date().toISOString(),
-                            analyzed: false,
-                            path: `/api/cv-store/${encodeURIComponent(filename)}`, // URL encode the filename
-                            tags: []
-                        };
-
-                        this.cvs.set(id, cv);
-                        resolve(cv);
-                    });
-                })
-                .catch(err => reject(err));
-        });
+        return {
+            id: cv._id.toString(),
+            filename: cv.filename,
+            uploadDate: cv.uploadDate,
+            analyzed: cv.analyzed,
+            fileId: cv.fileId,
+            tags: cv.tags,
+            age: cv.age,
+            department: cv.department,
+            email: cv.email,
+            phone: cv.phone,
+            birthdate: cv.birthdate,
+            expectedSalary: cv.expectedSalary,
+            originalTextFileId: cv.originalTextFileId,
+            enhancedTextFileId: cv.enhancedTextFileId,
+            parsedData: cv.parsedData,
+            analysis: cv.analysis
+        };
     }
 
-    deleteCV(id: string): boolean {
-        const cv = this.cvs.get(id);
-        if (!cv) return false;
+    async addCV(file: Buffer, filename: string, contentType: string, tags: string[] = []): Promise<ICV> {
+        await this.ensureInitialized();
 
         try {
-            // Get the actual file path from the cv_store folder
-            const filePath = path.join(this.cvFolder, cv.filename);
+            // Upload file to GridFS
+            const fileId = await uploadFile(file, filename, contentType);
 
-            // Delete the main CV file
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-            }
+            // Create CV document with the GridFS file ID
+            const cv = new CV({
+                filename,
+                uploadDate: new Date(),
+                analyzed: false,
+                fileId: fileId, // This is the GridFS file ID
+                tags: tags || []
+            });
 
-            // Delete original extracted text file if exists
-            const originalTextPath = path.join(this.cvFolder, `${id}_original.txt`);
-            if (fs.existsSync(originalTextPath)) {
-                fs.unlinkSync(originalTextPath);
-            }
+            // Save the CV document
+            const savedCV = await cv.save();
 
-            // Delete fixed CV text file if exists
-            const fixedTextPath = path.join(this.cvFolder, `${id}_fixed.txt`);
-            if (fs.existsSync(fixedTextPath)) {
-                fs.unlinkSync(fixedTextPath);
-            }
-
-            this.cvs.delete(id);
-            return true;
-        } catch (error) {
-            console.error('Error deleting CV:', error);
-            return false;
-        }
-    }
-
-    async analyzeCV(id: string): Promise<CV> {
-        const cv = this.cvs.get(id);
-        if (!cv) {
-            throw new Error('CV not found');
-        }
-
-        try {
-            // Extract text using OCR
-            const extractedText = await extractTextFromFile(cv.path);
-
-            // Save the original text to a text file
-            const originalTextPath = path.join(this.cvFolder, `${id}_original.txt`);
-            fs.writeFileSync(originalTextPath, extractedText);
-
-            // Fix CV with OpenAI
-            const fixedCVText = await fixCV(extractedText);
-
-            // Save the fixed text to a text file
-            const fixedTextPath = path.join(this.cvFolder, `${id}_fixed.txt`);
-            fs.writeFileSync(fixedTextPath, fixedCVText);
-
-            // Parse the CV using OpenAI
-            const parsedCV = await parseCV(fixedCVText);
-
-            // Convert parsed CV to tags
-            const tags = convertParsedCVToTags(parsedCV);
-
-            // Update CV
-            const updatedCV: CV = {
-                ...cv,
-                analyzed: true,
-                originalCvPath: originalTextPath,
-                cv: fixedTextPath,
-                tags: [...(cv.tags || []), ...tags],
-                parsedData: parsedCV
+            return {
+                id: savedCV._id.toString(),
+                filename: savedCV.filename,
+                uploadDate: savedCV.uploadDate,
+                analyzed: savedCV.analyzed,
+                fileId: savedCV.fileId,
+                tags: savedCV.tags
             };
-
-            // If age is present in parsedCV, update it
-            if (parsedCV.Age) {
-                const ageMatch = parsedCV.Age.match(/(\d+)[-+]/);
-                if (ageMatch) {
-                    const age = parseInt(ageMatch[1]);
-                    if (!isNaN(age)) {
-                        updatedCV.age = age;
-                    }
-                }
-            }
-
-            this.cvs.set(id, updatedCV);
-            return updatedCV;
         } catch (error) {
-            console.error('Error analyzing CV:', error);
+            console.error('Error adding CV:', error);
             throw error;
         }
     }
 
-    updateCVTags(id: string, tags: string[]): CV | undefined {
-        const cv = this.cvs.get(id);
-        if (!cv) return undefined;
+    async deleteCV(id: string): Promise<void> {
+        await this.ensureInitialized();
+        const cv = await CV.findById(id);
+        if (!cv) throw new Error('CV not found');
 
-        const updatedCV = {
-            ...cv,
-            tags: [...(cv.tags || []), ...tags]
-        };
-
-        this.cvs.set(id, updatedCV);
-        return updatedCV;
-    }
-
-    updateCVAge(id: string, age: number): CV | undefined {
-        const cv = this.cvs.get(id);
-        if (!cv) return undefined;
-
-        // Determine age range tag
-        let ageRangeTag = '';
-        if (age < 18) {
-            ageRangeTag = '18-under';
-        } else if (age <= 22) {
-            ageRangeTag = '18-22';
-        } else if (age <= 28) {
-            ageRangeTag = '23-28';
-        } else if (age <= 35) {
-            ageRangeTag = '28-35';
-        } else if (age <= 45) {
-            ageRangeTag = '36-45';
-        } else {
-            ageRangeTag = '46+';
+        // Delete file from GridFS
+        await deleteFileFromGridFS(cv.fileId);
+        if (cv.originalTextFileId) {
+            await deleteFileFromGridFS(cv.originalTextFileId);
+        }
+        if (cv.enhancedTextFileId) {
+            await deleteFileFromGridFS(cv.enhancedTextFileId);
         }
 
-        const formattedAgeRangeTag = `age:${ageRangeTag.toLowerCase()}`;
+        // Delete CV document
+        await CV.findByIdAndDelete(id);
+    }
 
-        const updatedCV = {
-            ...cv,
-            age,
-            tags: [...(cv.tags || []), `age:${age}`, formattedAgeRangeTag]
+    async getCVFile(id: string): Promise<Buffer> {
+        await this.ensureInitialized();
+        const cv = await CV.findById(id);
+        if (!cv) throw new Error('CV not found');
+        return getFileFromGridFS(cv.fileId);
+    }
+
+    async getCVText(id: string, type: 'original' | 'enhanced'): Promise<Buffer> {
+        await this.ensureInitialized();
+        const cv = await CV.findById(id);
+        if (!cv) throw new Error('CV not found');
+
+        const fileId = type === 'original' ? cv.originalTextFileId : cv.enhancedTextFileId;
+        if (!fileId) throw new Error(`${type} text not found`);
+
+        return getFileFromGridFS(fileId);
+    }
+
+    async updateCV(id: string, updates: Partial<ICV>): Promise<ICV> {
+        await this.ensureInitialized();
+        const cv = await CV.findByIdAndUpdate(id, updates, { new: true });
+        if (!cv) throw new Error('CV not found');
+
+        return {
+            id: cv._id.toString(),
+            filename: cv.filename,
+            uploadDate: cv.uploadDate,
+            analyzed: cv.analyzed,
+            fileId: cv.fileId,
+            tags: cv.tags,
+            age: cv.age,
+            department: cv.department,
+            email: cv.email,
+            phone: cv.phone,
+            birthdate: cv.birthdate,
+            expectedSalary: cv.expectedSalary,
+            originalTextFileId: cv.originalTextFileId,
+            enhancedTextFileId: cv.enhancedTextFileId,
+            parsedData: cv.parsedData,
+            analysis: cv.analysis
         };
+    }
 
-        this.cvs.set(id, updatedCV);
-        return updatedCV;
+    async searchCVs(query: string): Promise<ICV[]> {
+        await this.ensureInitialized();
+        const cvs = await CV.find({
+            $text: { $search: query }
+        }).sort({ uploadDate: -1 });
+
+        return cvs.map(cv => ({
+            id: cv._id.toString(),
+            filename: cv.filename,
+            uploadDate: cv.uploadDate,
+            analyzed: cv.analyzed,
+            fileId: cv.fileId,
+            tags: cv.tags,
+            age: cv.age,
+            department: cv.department,
+            email: cv.email,
+            phone: cv.phone,
+            birthdate: cv.birthdate,
+            expectedSalary: cv.expectedSalary,
+            originalTextFileId: cv.originalTextFileId,
+            enhancedTextFileId: cv.enhancedTextFileId,
+            parsedData: cv.parsedData,
+            analysis: cv.analysis
+        }));
+    }
+
+    async getCVsByTags(tags: string[]): Promise<ICV[]> {
+        await this.ensureInitialized();
+        const cvs = await CV.find({
+            tags: { $in: tags }
+        }).sort({ uploadDate: -1 });
+
+        return cvs.map(cv => ({
+            id: cv._id.toString(),
+            filename: cv.filename,
+            uploadDate: cv.uploadDate,
+            analyzed: cv.analyzed,
+            fileId: cv.fileId,
+            tags: cv.tags,
+            age: cv.age,
+            department: cv.department,
+            email: cv.email,
+            phone: cv.phone,
+            birthdate: cv.birthdate,
+            expectedSalary: cv.expectedSalary,
+            originalTextFileId: cv.originalTextFileId,
+            enhancedTextFileId: cv.enhancedTextFileId,
+            parsedData: cv.parsedData,
+            analysis: cv.analysis
+        }));
     }
 }
 
-// Singleton instance
-export const cvStore = new CVStore(); 
+export const cvStore = CVStore.getInstance(); 

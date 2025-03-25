@@ -2,44 +2,52 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
-import { Download, ExternalLink, RefreshCw } from "lucide-react";
+import { Download, ExternalLink, RefreshCw, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 
 interface PDFViewerProps {
-    filename: string;
-    url?: string;
-    fallbackUrl?: string;
+    fileUrl: string;
 }
 
-export default function PDFViewer({ filename, url, fallbackUrl }: PDFViewerProps) {
+export default function PDFViewer({ fileUrl }: PDFViewerProps) {
     const [isLoading, setIsLoading] = useState(true);
     const [hasError, setHasError] = useState(false);
     const [errorMessage, setErrorMessage] = useState<string>("");
-    const [currentUrl, setCurrentUrl] = useState<string>(url || '');
+    const [zoom, setZoom] = useState(1);
+    const [rotation, setRotation] = useState(0);
+    const [fileType, setFileType] = useState<'pdf' | 'image' | 'other'>('other');
 
-    // Create URLs for the CV file - either use provided URL or create from filename
-    const apiUrl = currentUrl || `/api/serve-cv/${encodeURIComponent(filename)}`;
+    // Determine file type from URL or content type
+    const determineFileType = (url: string, contentType?: string) => {
+        if (contentType) {
+            if (contentType.includes('pdf')) return 'pdf';
+            if (contentType.includes('image')) return 'image';
+            return 'other';
+        }
 
-    // Determine if this is a PDF or another file type
-    const isPDF = apiUrl.toLowerCase().endsWith('.pdf') || apiUrl.toLowerCase().includes('/uploads/') && !apiUrl.match(/\.(jpe?g|png|gif|tiff)$/i);
-    const isImage = apiUrl.match(/\.(jpe?g|png|gif|tiff)$/i) !== null;
+        const extension = url.split('.').pop()?.toLowerCase();
+        if (extension === 'pdf') return 'pdf';
+        if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension || '')) return 'image';
+        return 'other';
+    };
 
     // Handle opening in new tab
     const openDirectInNewTab = () => {
-        window.open(apiUrl, '_blank');
+        window.open(fileUrl, '_blank');
     };
 
-    // Function to retry loading the PDF
+    // Handle zoom controls
+    const zoomIn = () => setZoom(prev => Math.min(prev + 0.25, 3));
+    const zoomOut = () => setZoom(prev => Math.max(prev - 0.25, 0.5));
+    const resetZoom = () => setZoom(1);
+
+    // Handle rotation
+    const rotate = () => setRotation(prev => (prev + 90) % 360);
+
+    // Function to retry loading
     const retryLoading = () => {
         setIsLoading(true);
         setHasError(false);
-
-        // If we have a fallback URL and we're currently showing the primary URL
-        if (fallbackUrl && currentUrl === url) {
-            console.log("Trying fallback URL:", fallbackUrl);
-            setCurrentUrl(fallbackUrl);
-        } else {
-            setIsLoading(false);
-        }
+        checkFile();
     };
 
     // Check if the file is available
@@ -47,21 +55,21 @@ export default function PDFViewer({ filename, url, fallbackUrl }: PDFViewerProps
         try {
             setIsLoading(true);
 
-            // For external URLs, we don't check availability
-            // Just set loading to false to show the iframe
-            if (apiUrl.startsWith('http')) {
+            if (fileUrl.startsWith('http')) {
+                const response = await fetch(fileUrl, { method: 'HEAD' });
+                if (response.ok) {
+                    setFileType(determineFileType(fileUrl, response.headers.get('content-type') || undefined));
+                }
                 setIsLoading(false);
                 return;
             }
 
-            // For local files, check if they exist
-            const response = await fetch(apiUrl, { method: 'HEAD' });
-
+            const response = await fetch(fileUrl, { method: 'HEAD' });
             if (!response.ok) {
                 setHasError(true);
                 setErrorMessage(`Server returned status ${response.status}: ${response.statusText}`);
-                console.error('Error checking file:', response.statusText);
             } else {
+                setFileType(determineFileType(fileUrl, response.headers.get('content-type') || undefined));
                 setHasError(false);
             }
         } catch (error) {
@@ -73,21 +81,37 @@ export default function PDFViewer({ filename, url, fallbackUrl }: PDFViewerProps
         }
     };
 
-    // Check file when component mounts
     useEffect(() => {
         checkFile();
-    }, [apiUrl]);
+    }, [fileUrl]);
 
-    // Handle file loading error by setting the error state
-    const handleFileError = () => {
-        // If we have a fallback URL and we haven't tried it yet
-        if (fallbackUrl && currentUrl !== fallbackUrl) {
-            console.log("Primary URL failed, trying fallback URL:", fallbackUrl);
-            setCurrentUrl(fallbackUrl);
-        } else {
-            setHasError(true);
-            setErrorMessage("Failed to load file. The file may not exist or may not be accessible.");
+    const renderContent = () => {
+        const style = {
+            transform: `scale(${zoom}) rotate(${rotation}deg)`,
+            transition: 'transform 0.3s ease',
+        };
+
+        if (fileType === 'image') {
+            return (
+                <div className="h-full w-full flex items-center justify-center bg-gray-100 overflow-auto">
+                    <img
+                        src={fileUrl}
+                        alt="Document preview"
+                        className="max-w-full max-h-full object-contain"
+                        style={style}
+                        onError={() => setHasError(true)}
+                    />
+                </div>
+            );
         }
+
+        return (
+            <iframe
+                src={fileUrl}
+                className="w-full h-full"
+                style={{ border: 'none', ...style }}
+            />
+        );
     };
 
     return (
@@ -105,7 +129,7 @@ export default function PDFViewer({ filename, url, fallbackUrl }: PDFViewerProps
                     <p className="text-sm mt-2">This may be due to special characters in the filename or external URL restrictions.</p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-2">
                         <Button onClick={retryLoading} variant="outline" className="flex gap-1 items-center">
-                            <RefreshCw className="w-4 h-4 mr-1" /> {fallbackUrl && currentUrl !== fallbackUrl ? "Try Alternate URL" : "Retry"}
+                            <RefreshCw className="w-4 h-4 mr-1" /> Retry
                         </Button>
                         <Button onClick={openDirectInNewTab} variant="outline" className="flex gap-1 items-center">
                             <ExternalLink className="w-4 h-4 mr-1" /> Open in browser
@@ -114,45 +138,42 @@ export default function PDFViewer({ filename, url, fallbackUrl }: PDFViewerProps
                 </div>
             ) : (
                 <div className="h-full w-full bg-slate-800 rounded relative">
-                    {/* Use appropriate element based on file type */}
-                    {isPDF ? (
-                        <iframe
-                            src={apiUrl}
-                            className="w-full h-full"
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                border: 'none',
-                                display: 'block'
-                            }}
-                            title={`PDF Viewer - ${filename}`}
-                            onError={handleFileError}
-                        />
-                    ) : isImage ? (
-                        <div className="flex items-center justify-center h-full w-full bg-white overflow-auto">
-                            <img
-                                src={apiUrl}
-                                alt={filename}
-                                className="max-w-full max-h-full"
-                                onError={handleFileError}
-                            />
-                        </div>
-                    ) : (
-                        // Fallback to iframe for other file types
-                        <iframe
-                            src={apiUrl}
-                            className="w-full h-full"
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                border: 'none',
-                                display: 'block'
-                            }}
-                            title={`Document Viewer - ${filename}`}
-                            onError={handleFileError}
-                        />
-                    )}
+                    {renderContent()}
                     <div className="absolute bottom-4 right-4 flex gap-2">
+                        <div className="flex gap-2 bg-white/20 p-1 rounded-lg backdrop-blur-sm">
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={zoomOut}
+                                className="hover:bg-white/20"
+                            >
+                                <ZoomOut className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={resetZoom}
+                                className="hover:bg-white/20"
+                            >
+                                {Math.round(zoom * 100)}%
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={zoomIn}
+                                className="hover:bg-white/20"
+                            >
+                                <ZoomIn className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={rotate}
+                                className="hover:bg-white/20"
+                            >
+                                <RotateCw className="h-4 w-4" />
+                            </Button>
+                        </div>
                         <Button
                             size="sm"
                             onClick={openDirectInNewTab}

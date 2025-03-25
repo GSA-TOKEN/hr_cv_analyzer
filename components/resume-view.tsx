@@ -1,65 +1,81 @@
 "use client"
 
 import { useState, useEffect, useRef, useMemo } from "react"
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { FileText, Upload, Filter, CheckSquare, ArrowRight, Eye, Loader2, Maximize2 } from "lucide-react"
+import { FileText, Upload, Filter, CheckSquare, ArrowRight, Eye, Loader2, Maximize2, Trash2, Search } from "lucide-react"
 import { toast } from "sonner"
-import { CV } from "@/lib/cv-store"
 import PDFViewer from "@/components/pdf-viewer"
 import FetchTextContent from "@/components/fetch-text-content"
+import { ICV } from '@/lib/cv-store'
 
 export default function ResumeView() {
     const [selectedFiles, setSelectedFiles] = useState<string[]>([])
     const [filter, setFilter] = useState<"all" | "analyzed" | "unanalyzed" | "hasCv">("hasCv")
-    const [viewFile, setViewFile] = useState<CV | null>(null)
-    const [resumeFiles, setResumeFiles] = useState<CV[]>([])
+    const [viewFile, setViewFile] = useState<ICV | null>(null)
+    const [resumeFiles, setResumeFiles] = useState<ICV[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isUploading, setIsUploading] = useState(false)
     const [isAnalyzing, setIsAnalyzing] = useState(false)
-    const [viewAnalysis, setViewAnalysis] = useState<CV | null>(null)
+    const [viewAnalysis, setViewAnalysis] = useState<ICV | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
     const [analyzingUrlCVs, setAnalyzingUrlCVs] = useState<Record<string, boolean>>({})
+    const [selectedTags, setSelectedTags] = useState<string[]>([])
+    const [availableTags, setAvailableTags] = useState<string[]>([])
+    const [uploadError, setUploadError] = useState<string | null>(null)
+    const [searchQuery, setSearchQuery] = useState('')
 
-    // Fetch CVs when component mounts or filter changes
+    // Fetch CVs when component mounts or filter/tags change
     useEffect(() => {
         fetchCVs()
-    }, [filter])
+    }, [filter, selectedTags])
 
     const fetchCVs = async () => {
         setIsLoading(true)
         try {
-            // Use the local CV store
-            const response = await fetch('/api/cv-store')
+            console.log('Fetching CVs from API...');
+            let response
+            if (selectedTags.length > 0) {
+                response = await fetch('/api/cv-store/search', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ tags: selectedTags })
+                })
+            } else {
+                response = await fetch('/api/cv-store')
+            }
+
             if (!response.ok) {
                 throw new Error('Failed to fetch CVs')
             }
 
             const data = await response.json()
-            const mappedCVs = data.map((cv: any) => ({
-                id: cv.id,
-                filename: cv.filename,
-                uploadDate: cv.uploadDate,
-                analyzed: cv.analyzed,
-                path: cv.path,
-                tags: cv.tags || [],
-                age: cv.age,
-                department: cv.department,
-                email: cv.email,
-                phone: cv.phone,
-                birthdate: cv.birthdate,
-                expectedSalary: cv.expectedSalary,
-                originalCvPath: cv.originalCvPath
-            }))
+            console.log('Received CVs from API:', data);
 
-            setResumeFiles(mappedCVs)
-            console.log('Fetched CVs from local store:', mappedCVs)
+            // Ensure data is an array before setting it
+            const cvArray = Array.isArray(data) ? data : []
+            console.log(`Setting ${cvArray.length} CVs to state`);
+            setResumeFiles(cvArray)
+
+            // Collect all unique tags
+            const tags = new Set<string>()
+            cvArray.forEach((cv: ICV) => {
+                if (cv.tags && Array.isArray(cv.tags)) {
+                    cv.tags.forEach(tag => tags.add(tag))
+                }
+            })
+            setAvailableTags(Array.from(tags))
+
         } catch (error) {
             console.error('Error fetching CVs:', error)
-            toast.error("Failed to load resume files from local store")
+            toast.error("Failed to load resume files")
         } finally {
             setIsLoading(false)
         }
@@ -97,7 +113,7 @@ export default function ResumeView() {
         } else if (filter === "unanalyzed") {
             return resumeFiles.filter(file => !file.analyzed);
         } else if (filter === "hasCv") {
-            return resumeFiles.filter(file => !!file.path);
+            return resumeFiles.filter(file => !!file.fileId);
         } else {
             return resumeFiles;
         }
@@ -130,53 +146,42 @@ export default function ResumeView() {
         }
     }
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files
-        if (!files || files.length === 0) return
+    const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const files = event.target.files;
+        if (!files || files.length === 0) return;
 
-        setIsUploading(true)
-        const formData = new FormData()
-
-        Array.from(files).forEach(file => {
-            formData.append('files', file)
-        })
+        setIsUploading(true);
+        setUploadError(null);
 
         try {
-            const response = await fetch('/api/cv-upload', {
+            const file = files[0]; // Handle single file upload
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/cv-store', {
                 method: 'POST',
                 body: formData,
-            })
+            });
 
             if (!response.ok) {
-                throw new Error('Upload failed')
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to upload file');
             }
 
-            const result = await response.json()
+            const result = await response.json();
+            console.log('Upload successful:', result);
 
-            // Show success message
-            const successCount = result.files.filter((f: any) => f.success).length
-            if (successCount > 0) {
-                toast.success(`Successfully uploaded ${successCount} file(s)`)
-                // Refresh the CV list
-                fetchCVs()
-            }
-
-            // Show error if any
-            const failedFiles = result.files.filter((f: any) => !f.success)
-            if (failedFiles.length > 0) {
-                toast.error(`${failedFiles.length} file(s) failed to upload`)
-            }
+            // Refresh CV list
+            await fetchCVs();
+            toast.success('File uploaded successfully');
         } catch (error) {
-            console.error('Error uploading files:', error)
-            toast.error("Failed to upload files. Please try again.")
+            console.error('Error uploading file:', error);
+            setUploadError(error instanceof Error ? error.message : 'Failed to upload file');
+            toast.error('Failed to upload file');
         } finally {
-            setIsUploading(false)
-            // Reset the input
-            if (fileInputRef.current) {
-                fileInputRef.current.value = ''
-            }
+            setIsUploading(false);
         }
-    }
+    };
 
     const analyzeSelectedFiles = async () => {
         if (selectedFiles.length === 0) return
@@ -219,7 +224,7 @@ export default function ResumeView() {
         }
     }
 
-    const handleViewFile = (file: CV, e: React.MouseEvent) => {
+    const handleViewFile = (file: ICV, e: React.MouseEvent) => {
         e.stopPropagation();
         setViewFile(file);
 
@@ -230,19 +235,23 @@ export default function ResumeView() {
         console.log("Opening CV URL:", cvUrl);
     };
 
-    const handleViewAnalysis = (file: CV, e: React.MouseEvent) => {
+    const handleViewAnalysis = (file: ICV, e: React.MouseEvent) => {
         e.stopPropagation();
         setViewAnalysis(file);
     };
 
     // Format the date for display
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString)
-        return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })
-    }
+    const formatDate = (date: Date | string) => {
+        const dateObj = typeof date === 'string' ? new Date(date) : date;
+        return dateObj.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    };
 
-    const analyzeCV = async (file: CV) => {
-        if (!file.path) {
+    const analyzeCV = async (file: ICV) => {
+        if (!file.fileId) {
             toast.error("No CV URL available for this entry");
             return;
         }
@@ -258,7 +267,7 @@ export default function ResumeView() {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    url: file.path,
+                    fileId: file.fileId,
                     id: file.id,
                     filename: file.filename
                 })
@@ -276,8 +285,8 @@ export default function ResumeView() {
                 ...file,
                 analyzed: true,
                 tags: [...(file.tags || []), ...(result.tags || [])],
-                originalCvPath: result.originalTextPath,
-                cv: result.fixedTextPath,
+                originalTextFileId: result.originalTextFileId,
+                enhancedTextFileId: result.enhancedTextFileId,
                 parsedCV: result.parsedCV
             };
 
@@ -296,6 +305,103 @@ export default function ResumeView() {
         }
     };
 
+    const handleTagSelect = (tag: string) => {
+        setSelectedTags(prev => {
+            if (prev.includes(tag)) {
+                return prev.filter(t => t !== tag);
+            } else {
+                return [...prev, tag];
+            }
+        });
+    };
+
+    // Add tag filter section to the UI
+    const renderTagFilters = () => (
+        <div className="flex flex-wrap gap-2 mb-4">
+            {availableTags.map((tag: string, index: number) => (
+                <Badge
+                    key={index}
+                    variant={selectedTags.includes(tag) ? "default" : "outline"}
+                    className="cursor-pointer hover:bg-primary/10"
+                    onClick={() => handleTagSelect(tag)}
+                >
+                    {tag}
+                </Badge>
+            ))}
+        </div>
+    );
+
+    const renderCV = (cv: ICV) => {
+        return (
+            <Card
+                key={cv.id}
+                className={`relative ${selectedFiles.includes(cv.id) ? 'ring-2 ring-primary' : ''
+                    }`}
+                onClick={() => toggleFileSelection(cv.id)}
+            >
+                <CardHeader className="pb-2">
+                    <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <h3 className="font-medium">{cv.filename}</h3>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                                Uploaded on {formatDate(cv.uploadDate)}
+                            </div>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent className="pb-2">
+                    {cv.fileId ? (
+                        <div className="flex flex-wrap gap-1">
+                            {cv.tags?.slice(0, 3).map((tag, index) => (
+                                <Badge key={index} variant="secondary">
+                                    {tag}
+                                </Badge>
+                            ))}
+                            {(cv.tags?.length || 0) > 3 && (
+                                <Badge variant="secondary">
+                                    +{(cv.tags?.length || 0) - 3} more
+                                </Badge>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">No CV uploaded</p>
+                    )}
+                </CardContent>
+                <CardFooter className="flex justify-between items-center">
+                    <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setViewFile(cv);
+                        }}
+                    >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                    </Button>
+                    {cv.analyzed && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setViewAnalysis(cv);
+                            }}
+                        >
+                            <Maximize2 className="h-4 w-4 mr-2" />
+                            Analysis
+                        </Button>
+                    )}
+                </CardFooter>
+            </Card>
+        );
+    };
+
     return (
         <div className="space-y-6">
             {/* Hidden file input for uploads */}
@@ -305,12 +411,12 @@ export default function ResumeView() {
                 onChange={handleFileUpload}
                 style={{ display: 'none' }}
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png,.tiff"
+                accept=".pdf,.jpg,.jpeg,.png,.tiff,.docx"
             />
 
             <div className="flex justify-between items-center">
                 <div className="flex items-center gap-4">
-                    <Tabs defaultValue="hasCv" onValueChange={(value) => setFilter(value as "all" | "analyzed" | "unanalyzed" | "hasCv")}>
+                    <Tabs defaultValue="hasCv" onValueChange={(value) => setFilter(value as any)}>
                         <TabsList>
                             <TabsTrigger value="all">All</TabsTrigger>
                             <TabsTrigger value="hasCv">With CV</TabsTrigger>
@@ -320,12 +426,12 @@ export default function ResumeView() {
                     </Tabs>
 
                     <div className="text-sm text-muted-foreground">
-                        Showing {filteredFiles.length} {filter === "hasCv" ? "resumes with CV" : filter === "analyzed" ? "analyzed resumes" : filter === "unanalyzed" ? "unanalyzed resumes" : "resumes"}
-                        {filter === "all" && (
-                            <span className="ml-1">
-                                ({resumeFiles.filter(f => !!f.path).length} with CV)
+                        {selectedTags.length > 0 && (
+                            <span className="mr-2">
+                                Filtered by {selectedTags.length} tag(s)
                             </span>
                         )}
+                        Showing {filteredFiles.length} {filter === "hasCv" ? "resumes with CV" : filter === "analyzed" ? "analyzed resumes" : filter === "unanalyzed" ? "unanalyzed resumes" : "resumes"}
                     </div>
                 </div>
 
@@ -370,6 +476,9 @@ export default function ResumeView() {
                 </div>
             </div>
 
+            {/* Tag filters */}
+            {renderTagFilters()}
+
             {isLoading ? (
                 <div className="flex justify-center items-center h-64">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -397,89 +506,7 @@ export default function ResumeView() {
             ) : (
                 /* Grid layout that wraps to next line */
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                    {filteredFiles.map((file) => (
-                        <Card
-                            key={file.id}
-                            className={`cursor-pointer ${selectedFiles.includes(file.id) ? 'ring-2 ring-primary' : ''}`}
-                            onClick={() => toggleFileSelection(file.id)}
-                        >
-                            <CardContent className="p-4">
-                                <div className="flex flex-col gap-2">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <FileText className={`h-10 w-10 ${file.path ? 'text-primary' : 'text-muted-foreground'}`} />
-                                        <div className="flex flex-col gap-1 items-end">
-                                            {file.analyzed ? (
-                                                <Badge variant="outline" className="bg-green-100">Analyzed</Badge>
-                                            ) : (
-                                                <Badge variant="outline" className="bg-amber-100">Unanalyzed</Badge>
-                                            )}
-                                            {file.age && (
-                                                <Badge variant="outline" className="bg-blue-100">Age: {file.age}</Badge>
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    <h3 className="font-medium text-sm truncate" title={file.filename}>
-                                        {file.filename}
-                                    </h3>
-
-                                    {/* Add email and phone if available */}
-                                    {(file.email || file.phone) && (
-                                        <div className="text-xs text-muted-foreground">
-                                            {file.email && <div className="truncate">{file.email}</div>}
-                                            {file.phone && <div>{file.phone}</div>}
-                                        </div>
-                                    )}
-
-                                    {/* Add expected salary if available */}
-                                    {file.expectedSalary && (
-                                        <div className="text-xs font-medium">
-                                            Expected: {file.expectedSalary}
-                                        </div>
-                                    )}
-
-                                    <div className="flex justify-between items-center text-xs text-muted-foreground">
-                                        <span>{formatDate(file.uploadDate)}</span>
-                                        <span>{file.path ? "PDF Document" : "No CV"}</span>
-                                    </div>
-
-                                    {selectedFiles.includes(file.id) && (
-                                        <div className="absolute top-2 right-2 h-4 w-4 rounded-full bg-primary"></div>
-                                    )}
-                                </div>
-                            </CardContent>
-                            <CardFooter className="p-2 pt-0">
-                                <div className="w-full flex gap-1">
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="flex-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 transition-colors"
-                                        onClick={(e) => handleViewFile(file, e)}
-                                        disabled={!file.path}
-                                    >
-                                        <div className="flex items-center">
-                                            <Eye className="h-4 w-4 mr-1" />
-                                            <span>View CV</span>
-                                        </div>
-                                    </Button>
-
-                                    {file.analyzed && (
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            className="flex-1 text-green-600 hover:text-green-800 hover:bg-green-50 transition-colors"
-                                            onClick={(e) => handleViewAnalysis(file, e)}
-                                        >
-                                            <div className="flex items-center">
-                                                <FileText className="h-4 w-4 mr-1" />
-                                                <span>Analysis</span>
-                                            </div>
-                                        </Button>
-                                    )}
-                                </div>
-                            </CardFooter>
-                        </Card>
-                    ))}
+                    {filteredFiles.map((file) => renderCV(file))}
                 </div>
             )}
 
@@ -510,59 +537,15 @@ export default function ResumeView() {
 
             {/* CV View Dialog */}
             <Dialog open={viewFile !== null} onOpenChange={(open) => !open && setViewFile(null)}>
-                <DialogContent className="max-w-7xl w-[95vw] h-[90vh] max-h-[90vh] p-4 overflow-hidden flex flex-col">
-                    <DialogHeader className="pb-2 flex-shrink-0">
-                        <DialogTitle className="text-xl">{viewFile?.filename}</DialogTitle>
-                        {viewFile && (
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2 text-sm">
-                                {viewFile.department && (
-                                    <div>
-                                        <span className="font-semibold">Department:</span> {viewFile.department}
-                                    </div>
-                                )}
-                                {viewFile.email && (
-                                    <div>
-                                        <span className="font-semibold">Email:</span> {viewFile.email}
-                                    </div>
-                                )}
-                                {viewFile.phone && (
-                                    <div>
-                                        <span className="font-semibold">Phone:</span> {viewFile.phone}
-                                    </div>
-                                )}
-                                {viewFile.birthdate && (
-                                    <div>
-                                        <span className="font-semibold">Date of Birth:</span> {viewFile.birthdate}
-                                    </div>
-                                )}
-                                {viewFile.age !== undefined && (
-                                    <div>
-                                        <span className="font-semibold">Age:</span> {viewFile.age}
-                                    </div>
-                                )}
-                                {viewFile.expectedSalary && (
-                                    <div>
-                                        <span className="font-semibold">Expected Salary:</span> {viewFile.expectedSalary}
-                                    </div>
-                                )}
-                            </div>
-                        )}
+                <DialogContent className="max-w-4xl w-[95vw] h-[90vh] max-h-[90vh] p-4">
+                    <DialogHeader>
+                        <DialogTitle>{viewFile?.filename}</DialogTitle>
                     </DialogHeader>
-                    <div className="flex-grow bg-gray-100 rounded-md overflow-hidden" style={{ height: 'calc(100% - 110px)' }}>
+                    <div className="flex-1 min-h-0 overflow-hidden">
                         {viewFile && (
-                            <div className="h-full w-full">
-                                {viewFile.path ? (
-                                    <PDFViewer
-                                        filename={viewFile.filename}
-                                        url={viewFile.path}
-                                        fallbackUrl={viewFile.originalCvPath ?
-                                            (viewFile.originalCvPath.startsWith('http') ?
-                                                viewFile.originalCvPath :
-                                                `https://ikv1api.gsadev.site${viewFile.originalCvPath}`
-                                            ) :
-                                            undefined
-                                        }
-                                    />
+                            <div className="h-full">
+                                {viewFile.fileId ? (
+                                    <PDFViewer fileUrl={`/api/cv-store/${viewFile.id}`} />
                                 ) : (
                                     <div className="flex items-center justify-center h-full">
                                         <div className="text-center p-6 bg-white rounded-lg shadow-sm">
@@ -581,21 +564,19 @@ export default function ResumeView() {
             {/* Analysis Results Dialog */}
             <Dialog open={viewAnalysis !== null} onOpenChange={(open) => !open && setViewAnalysis(null)}>
                 <DialogContent className="max-w-5xl w-[95vw] h-[90vh] max-h-[90vh] p-4 overflow-hidden flex flex-col">
-                    <DialogHeader className="pb-2 flex-shrink-0">
-                        <DialogTitle className="text-xl">Analysis Results: {viewAnalysis?.filename}</DialogTitle>
+                    <DialogHeader>
+                        <DialogTitle>Analysis Results - {viewAnalysis?.filename}</DialogTitle>
                     </DialogHeader>
-
-                    <div className="flex-grow overflow-auto">
-                        {viewAnalysis && (
-                            <Tabs defaultValue="tags">
-                                <TabsList className="mb-4">
-                                    <TabsTrigger value="tags">Tags & Categories</TabsTrigger>
-                                    <TabsTrigger value="ocr">OCR Text</TabsTrigger>
-                                    <TabsTrigger value="enhanced">Enhanced CV</TabsTrigger>
-                                </TabsList>
-
-                                <TabsContent value="tags" className="h-full overflow-auto">
-                                    <div className="space-y-4">
+                    <Tabs defaultValue="summary" className="flex-1 overflow-hidden">
+                        <TabsList>
+                            <TabsTrigger value="summary">Summary</TabsTrigger>
+                            <TabsTrigger value="original">Original Text</TabsTrigger>
+                            <TabsTrigger value="enhanced">Enhanced Text</TabsTrigger>
+                        </TabsList>
+                        <div className="flex-1 overflow-auto mt-4">
+                            <TabsContent value="summary" className="h-full">
+                                {viewAnalysis && (
+                                    <div className="space-y-6">
                                         <Card>
                                             <CardHeader>
                                                 <h3 className="text-md font-medium">Tags</h3>
@@ -661,38 +642,24 @@ export default function ResumeView() {
                                             </CardContent>
                                         </Card>
                                     </div>
-                                </TabsContent>
-
-                                <TabsContent value="ocr" className="h-full overflow-auto">
-                                    <Card>
-                                        <CardContent className="p-4">
-                                            {viewAnalysis.originalCvPath ? (
-                                                <div className="max-h-[60vh] overflow-auto p-4 bg-gray-50 rounded-md font-mono text-sm whitespace-pre-wrap">
-                                                    <FetchTextContent path={viewAnalysis.originalCvPath} />
-                                                </div>
-                                            ) : (
-                                                <p className="text-muted-foreground">Original OCR text not available</p>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-
-                                <TabsContent value="enhanced" className="h-full overflow-auto">
-                                    <Card>
-                                        <CardContent className="p-4">
-                                            {viewAnalysis.cv ? (
-                                                <div className="max-h-[60vh] overflow-auto p-4 bg-gray-50 rounded-md font-mono text-sm whitespace-pre-wrap">
-                                                    <FetchTextContent path={viewAnalysis.cv} />
-                                                </div>
-                                            ) : (
-                                                <p className="text-muted-foreground">Enhanced CV text not available</p>
-                                            )}
-                                        </CardContent>
-                                    </Card>
-                                </TabsContent>
-                            </Tabs>
-                        )}
-                    </div>
+                                )}
+                            </TabsContent>
+                            <TabsContent value="original" className="h-full">
+                                {viewAnalysis?.originalTextFileId ? (
+                                    <FetchTextContent fileId={viewAnalysis.originalTextFileId} />
+                                ) : (
+                                    <p>Original text not available</p>
+                                )}
+                            </TabsContent>
+                            <TabsContent value="enhanced" className="h-full">
+                                {viewAnalysis?.enhancedTextFileId ? (
+                                    <FetchTextContent fileId={viewAnalysis.enhancedTextFileId} />
+                                ) : (
+                                    <p>Enhanced text not available</p>
+                                )}
+                            </TabsContent>
+                        </div>
+                    </Tabs>
                 </DialogContent>
             </Dialog>
         </div>
