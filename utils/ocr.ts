@@ -1,4 +1,4 @@
-import { createWorker } from 'tesseract.js';
+import { createWorker, WorkerOptions } from 'tesseract.js';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
 import fs from 'fs';
@@ -10,37 +10,71 @@ import { getDocument } from 'pdfjs-dist';
 // Setup PDF.js worker
 setupPdfWorker();
 
+// Ensure necessary directories exist for Tesseract
+if (typeof window === 'undefined') {
+    const ensureDir = (dirPath: string) => {
+        if (!fs.existsSync(dirPath)) {
+            try {
+                fs.mkdirSync(dirPath, { recursive: true });
+                console.log(`Created directory: ${dirPath}`);
+            } catch (err) {
+                console.error(`Error creating directory ${dirPath}:`, err);
+            }
+        }
+    };
+
+    // Create temp directories for Tesseract
+    ensureDir(path.join(process.cwd(), '.tesseract'));
+    ensureDir(path.join(process.cwd(), '.tessdata'));
+
+    // Copy the worker script to our application directory if it doesn't exist
+    const workerDirPath = path.join(process.cwd(), 'public', 'worker');
+    ensureDir(workerDirPath);
+
+    // Try to copy the worker script from node_modules if needed
+    const sourceWorkerPath = path.join(process.cwd(), 'node_modules', 'tesseract.js-core', 'tesseract-core.wasm.js');
+    const targetWorkerPath = path.join(workerDirPath, 'tesseract-worker.js');
+
+    if (fs.existsSync(sourceWorkerPath) && !fs.existsSync(targetWorkerPath)) {
+        try {
+            fs.copyFileSync(sourceWorkerPath, targetWorkerPath);
+            console.log(`Copied Tesseract worker script to: ${targetWorkerPath}`);
+        } catch (copyErr) {
+            console.error(`Error copying worker script: ${copyErr}`);
+        }
+    }
+}
+
 // Initialize Tesseract worker
 let tesseractWorker: any = null;
+
+// Function to create a worker with safe configuration for Next.js 15
+async function createSafeWorker() {
+    // For server-side, use a minimal configuration
+    if (typeof window === 'undefined') {
+        try {
+            // Create a worker without special options for Next.js 15 compatibility
+            // This avoids issues with worker paths in the .next directory
+            console.log('Creating worker with standard configuration');
+            return await createWorker();
+        } catch (err) {
+            console.error('Error creating worker:', err);
+            // Last resort fallback to simple creation
+            return createWorker();
+        }
+    } else {
+        // Client-side - standard configuration
+        return createWorker();
+    }
+}
 
 export async function getTesseractWorker() {
     if (!tesseractWorker) {
         try {
-            console.log('Initializing Tesseract worker...');
-
-            // Fix for server-side: Use alternative worker initialization
-            if (typeof window === 'undefined') {
-                // Server-side: Create a worker with minimal configuration
-                tesseractWorker = await createWorker('eng+tur');
-            } else {
-                // Client-side: Use standard worker setup
-                tesseractWorker = await createWorker('eng+tur');
-            }
-
-            // Initialize with the languages
-            await tesseractWorker.initialize('eng+tur');
-            console.log('Tesseract worker initialized successfully');
-
-            // Set up clean-up function
-            if (typeof process !== 'undefined') {
-                process.on('exit', async () => {
-                    if (tesseractWorker) {
-                        console.log('Terminating Tesseract worker');
-                        await tesseractWorker.terminate();
-                        tesseractWorker = null;
-                    }
-                });
-            }
+            console.log('Initializing main Tesseract worker...');
+            tesseractWorker = await createSafeWorker();
+            console.log('Tesseract worker created successfully');
+            return tesseractWorker;
         } catch (error: any) {
             console.error('Error initializing Tesseract worker:', error);
             throw new Error(`Failed to initialize OCR: ${error.message}`);
@@ -243,9 +277,8 @@ export async function extractTextFromImage(filePath: string): Promise<string> {
     try {
         console.log('Extracting text from image using OCR...');
 
-        // Don't reuse the global worker to avoid potential issues
-        // Create a new worker for this specific task
-        const worker = await createWorker('eng+tur');
+        // Use our safe worker approach
+        const worker = await createSafeWorker();
 
         // Recognize text
         console.log('Running OCR recognition...');
@@ -311,11 +344,8 @@ export async function extractTextFromFile(fileBuffer: Buffer): Promise<string> {
             console.log('Not a valid PDF or no text content found, trying OCR...');
         }
 
-        // If PDF extraction fails or returns no text, try OCR
-        const worker = await getTesseractWorker();
-        const { data: { text } } = await worker.recognize(fileBuffer);
-
-        return text;
+        // If PDF extraction fails or returns no text, try OCR with our safe worker
+        return await extractTextWithOCR(fileBuffer);
     } catch (error) {
         console.error('Error extracting text:', error);
         throw error;
@@ -371,6 +401,34 @@ export async function extractTextFromUrl(url: string): Promise<string> {
     }
 }
 
+// Around line 450 in the file
+// Use our safe worker creation
+async function extractTextWithOCR(buffer: Buffer) {
+    console.log('Using OCR to extract text');
+
+    // Create a dedicated worker with our safe approach for Next.js 15
+    console.log('Initializing dedicated OCR worker...');
+    const worker = await createSafeWorker();
+
+    try {
+        // Process the buffer
+        console.log('Running OCR recognition...');
+        const result = await worker.recognize(buffer);
+        const extractedText = result.data.text || '';
+
+        // Clean up
+        console.log('Terminating OCR worker...');
+        await worker.terminate();
+
+        return extractedText;
+    } catch (err) {
+        // Make sure we terminate the worker even if recognition fails
+        await worker.terminate();
+        throw err;
+    }
+}
+
+// Update the extractTextFromBuffer function
 export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
     try {
         let text = '';
@@ -420,33 +478,8 @@ export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
             console.log('PDF extraction failed, falling back to OCR', error);
         }
 
-        // If PDF extraction fails or returns empty text, try OCR
-        try {
-            console.log('Using OCR to extract text');
-
-            // Create a dedicated worker for this specific task
-            // This avoids the worker path issue
-            console.log('Initializing dedicated OCR worker for this extraction...');
-            const worker = await createWorker('eng+tur');
-
-            // Process the buffer
-            console.log('Running OCR recognition on buffer...');
-            const { data } = await worker.recognize(buffer);
-            text = data.text;
-
-            // Clean up immediately
-            console.log('OCR recognition complete, terminating worker');
-            await worker.terminate();
-
-            console.log('Successfully extracted text using OCR');
-
-            if (!text.trim()) {
-                throw new Error('OCR extraction returned empty text');
-            }
-        } catch (ocrError) {
-            console.error('OCR extraction failed:', ocrError);
-            throw new Error('Both PDF extraction and OCR failed. Unable to extract text from this file.');
-        }
+        // If PDF extraction fails or returns empty text, try OCR with our safe worker approach
+        text = await extractTextWithOCR(buffer);
 
         const cleanedText = cleanTextForOpenAI(text);
         console.log(`Extracted ${cleanedText.length} characters of text`);
@@ -464,22 +497,33 @@ export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
  */
 export async function extractTextFromImageBuffer(buffer: Buffer): Promise<string> {
     try {
-        console.log('Extracting text from image buffer using OCR...');
+        if (!buffer || buffer.length === 0) {
+            throw new Error('Empty image buffer received');
+        }
 
-        // Create a dedicated worker for this task
-        const worker = await createWorker('eng+tur');
+        console.log('Initializing dedicated OCR worker for extraction...');
 
-        // Recognize text directly from buffer
-        console.log('Running OCR recognition on buffer...');
-        const { data: { text } } = await worker.recognize(buffer);
+        // Create a standalone worker using our safe approach
+        const worker = await createSafeWorker();
+
+        // Let Tesseract.js handle initialization internally
+        console.log('Running OCR recognition...');
+        const result = await worker.recognize(buffer);
+        const extractedText = result.data.text || '';
 
         // Clean up
-        console.log('OCR buffer recognition complete, terminating worker');
+        console.log('Terminating OCR worker...');
         await worker.terminate();
 
-        return cleanTextForOpenAI(text);
+        if (!extractedText.trim()) {
+            console.warn('OCR returned empty text');
+            return 'OCR extraction returned no text. The image might be of poor quality or contain no text.';
+        }
+
+        console.log(`OCR extracted ${extractedText.length} characters`);
+        return cleanTextForOpenAI(extractedText);
     } catch (error: any) {
-        console.error('Error extracting text from image buffer:', error);
-        return `Image buffer text extraction failed: ${error.message}`;
+        console.error('OCR text extraction error:', error);
+        return `OCR extraction failed: ${error.message}`;
     }
 }

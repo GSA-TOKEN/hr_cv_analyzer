@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Upload, Loader2 } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 interface CVUploaderProps {
     onUploadComplete: () => void;
@@ -12,7 +12,6 @@ const CVUploader: React.FC<CVUploaderProps> = ({ onUploadComplete }) => {
     const [isDragging, setIsDragging] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const { toast } = useToast();
 
     const handleDragOver = (e: React.DragEvent) => {
         e.preventDefault();
@@ -58,17 +57,14 @@ const CVUploader: React.FC<CVUploaderProps> = ({ onUploadComplete }) => {
                 throw new Error(error || 'Failed to upload file');
             }
 
-            toast({
-                title: "Success",
-                description: `${files.length > 1 ? `${files.length} files` : 'File'} uploaded successfully.`,
+            toast.success("Success", {
+                description: `${files.length > 1 ? `${files.length} files` : 'File'} uploaded successfully.`
             });
 
             onUploadComplete();
         } catch (error: any) {
-            toast({
-                title: "Upload failed",
-                description: error.message || "There was a problem with the upload.",
-                variant: "destructive",
+            toast.error("Upload failed", {
+                description: error.message || "There was a problem with the upload."
             });
             console.error("Upload error:", error);
         } finally {

@@ -8,12 +8,17 @@ export interface ICV extends Document {
     error?: string;
     fileId: string;
     tags: string[];
+
+    // Demographic information
+    firstName?: string;
+    lastName?: string;
     age?: number;
     department?: string;
     email?: string;
     phone?: string;
     birthdate?: string;
     expectedSalary?: number;
+
     originalTextFileId?: string;
     enhancedTextFileId?: string;
     parsedData?: any;
@@ -39,12 +44,17 @@ const CVSchema = new Schema<ICV>({
     error: { type: String },
     fileId: { type: String, required: true, unique: true },
     tags: [{ type: String, index: true }],
-    age: { type: Number },
+
+    // Demographic information
+    firstName: { type: String, index: true },
+    lastName: { type: String, index: true },
+    age: { type: Number, index: true },
     department: { type: String, index: true },
-    email: { type: String },
+    email: { type: String, index: true },
     phone: { type: String },
     birthdate: { type: String },
     expectedSalary: { type: Number },
+
     originalTextFileId: { type: String },
     enhancedTextFileId: { type: String },
     parsedData: { type: Schema.Types.Mixed },
@@ -74,6 +84,8 @@ const CVSchema = new Schema<ICV>({
 // Create text indexes for search
 CVSchema.index({
     filename: 'text',
+    firstName: 'text',
+    lastName: 'text',
     'analysis.technicalSkills': 'text',
     'analysis.softSkills': 'text',
     'analysis.languages.name': 'text',
@@ -86,15 +98,17 @@ CVSchema.index({
     email: 'text'
 }, {
     weights: {
-        filename: 10,
-        'tags': 8,
-        'analysis.technicalSkills': 7,
-        'analysis.softSkills': 6,
+        firstName: 10,
+        lastName: 10,
+        filename: 8,
+        'tags': 7,
+        'analysis.technicalSkills': 6,
+        'analysis.softSkills': 5,
         'analysis.experience.position': 5,
         department: 5,
         'analysis.education.degree': 4,
         'analysis.languages.name': 3,
-        email: 2
+        email: 3
     },
     name: 'cv_search_index'
 });

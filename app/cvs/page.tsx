@@ -14,7 +14,7 @@ import CVViewer from '../components/CV/CVViewer';
 import CVAnalysisDialog from '../components/CV/CVAnalysisDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileUp, Search, CircleAlert, RefreshCw } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { toast } from 'sonner';
 
 export default function CVsPage() {
     const router = useRouter();
@@ -27,7 +27,6 @@ export default function CVsPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedCVs, setSelectedCVs] = useState<string[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
-    const { toast } = useToast();
 
     // Fetch CVs on component mount
     useEffect(() => {
@@ -65,9 +64,8 @@ export default function CVsPage() {
     // Handle CV upload completion
     const handleUploadComplete = () => {
         fetchCVs();
-        toast({
-            title: "Upload Complete",
-            description: "CV was successfully uploaded.",
+        toast.success("Upload Complete", {
+            description: "CV was successfully uploaded."
         });
     };
 
@@ -112,16 +110,13 @@ export default function CVsPage() {
             const data = await response.json();
             fetchCVs(); // Refresh the CV list
 
-            toast({
-                title: "Analysis Complete",
-                description: "CV was successfully analyzed.",
+            toast.success("Analysis Complete", {
+                description: "CV was successfully analyzed."
             });
         } catch (error: any) {
             console.error('Error analyzing CV:', error);
-            toast({
-                title: "Analysis Failed",
-                description: error.message || "Failed to analyze CV",
-                variant: "destructive",
+            toast.error("Analysis Failed", {
+                description: error.message || "Failed to analyze CV"
             });
         } finally {
             setIsAnalyzing(false);
@@ -131,10 +126,8 @@ export default function CVsPage() {
     // Handle analyzing multiple selected CVs
     const handleAnalyzeSelected = async () => {
         if (selectedCVs.length === 0) {
-            toast({
-                title: "No CVs Selected",
-                description: "Please select at least one CV to analyze.",
-                variant: "destructive",
+            toast.error("No CVs Selected", {
+                description: "Please select at least one CV to analyze."
             });
             return;
         }
@@ -158,16 +151,13 @@ export default function CVsPage() {
             fetchCVs(); // Refresh the CV list
             setSelectedCVs([]); // Clear selection
 
-            toast({
-                title: "Analysis Complete",
-                description: `Successfully analyzed ${selectedCVs.length} CVs.`,
+            toast.success("Analysis Complete", {
+                description: `Successfully analyzed ${selectedCVs.length} CVs.`
             });
         } catch (error: any) {
             console.error('Error analyzing CVs:', error);
-            toast({
-                title: "Analysis Failed",
-                description: error.message || "Failed to analyze selected CVs",
-                variant: "destructive",
+            toast.error("Analysis Failed", {
+                description: error.message || "Failed to analyze selected CVs"
             });
         } finally {
             setIsAnalyzing(false);

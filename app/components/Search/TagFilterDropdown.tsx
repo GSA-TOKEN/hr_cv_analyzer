@@ -299,7 +299,7 @@ const TagFilterDropdown: React.FC<TagFilterDropdownProps> = ({
 
     useEffect(() => {
         onFilterChange(selectedTags);
-    }, [selectedTags, onFilterChange]);
+    }, [selectedTags]);
 
     // Toggle tag selection
     const toggleTag = (tag: string) => {

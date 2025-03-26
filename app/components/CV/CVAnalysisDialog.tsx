@@ -55,7 +55,33 @@ const CVAnalysisDialog: React.FC<CVAnalysisDialogProps> = ({
                     <TabsContent value="summary" className="space-y-4">
                         <div>
                             <h3 className="text-lg font-medium">CV Overview</h3>
-                            <div className="grid grid-cols-1 gap-2 mt-2">
+                            <div className="grid grid-cols-2 gap-2 mt-2">
+                                <div>
+                                    <p className="text-sm text-gray-500">Name</p>
+                                    <p>{cv.firstName && cv.lastName
+                                        ? `${cv.firstName} ${cv.lastName}`
+                                        : (cv.parsedData?.demographics?.firstName && cv.parsedData?.demographics?.lastName
+                                            ? `${cv.parsedData.demographics.firstName} ${cv.parsedData.demographics.lastName}`
+                                            : 'Not available')}
+                                    </p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">Email</p>
+                                    <p>{cv.email || cv.parsedData?.demographics?.email || 'Not available'}</p>
+                                </div>
+                                <div>
+                                    <p className="text-sm text-gray-500">Phone</p>
+                                    <p>{cv.phone || cv.parsedData?.demographics?.phone || 'Not available'}</p>
+                                </div>
+                                {(cv.age || cv.birthdate || cv.parsedData?.demographics?.birthdate) && (
+                                    <div>
+                                        <p className="text-sm text-gray-500">Age/Birthdate</p>
+                                        <p>{cv.age
+                                            ? `${cv.age} years`
+                                            : (cv.birthdate || cv.parsedData?.demographics?.birthdate || 'Not available')}
+                                        </p>
+                                    </div>
+                                )}
                                 <div>
                                     <p className="text-sm text-gray-500">Filename</p>
                                     <p>{cv.filename}</p>

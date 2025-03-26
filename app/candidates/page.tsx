@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,8 +9,24 @@ import { ICV } from '@/lib/cv-store';
 import CVCard from '@/app/components/CV/CVCard';
 import CVViewer from '@/app/components/CV/CVViewer';
 import CVAnalysisDialog from '@/app/components/CV/CVAnalysisDialog';
+import CVDetailDialog from '@/app/components/CV/CVDetailDialog';
+import CVTableView from '@/app/components/CV/CVTableView';
 import TagFilterDropdown from '@/app/components/Search/TagFilterDropdown';
-import { Search, CircleAlert, RefreshCw, FileUp } from 'lucide-react';
+import DemographicFilterDropdown from '@/app/components/Search/DemographicFilterDropdown';
+import { Search, CircleAlert, RefreshCw, FileUp, Filter, LayoutGrid, List } from 'lucide-react';
+import CVDemographicInfo from '@/app/components/CV/CVDemographicInfo';
+
+// Define demographic filter interface
+interface DemographicFilters {
+    age?: [number, number];
+    department?: string;
+    expectedSalary?: [number, number];
+    firstName?: string;
+    lastName?: string;
+}
+
+// Define view types
+type ViewType = 'grid' | 'table';
 
 export default function CandidateSearchPage() {
     const router = useRouter();
@@ -18,10 +34,13 @@ export default function CandidateSearchPage() {
     const [selectedCV, setSelectedCV] = useState<ICV | null>(null);
     const [viewerOpen, setViewerOpen] = useState(false);
     const [analysisOpen, setAnalysisOpen] = useState(false);
+    const [detailOpen, setDetailOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
+    const [demographicFilters, setDemographicFilters] = useState<DemographicFilters>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [viewType, setViewType] = useState<ViewType>('table'); // Default to table view
     const [pagination, setPagination] = useState({
         total: 0,
         page: 1,
@@ -32,7 +51,7 @@ export default function CandidateSearchPage() {
     // Effect to fetch CVs when search params change
     useEffect(() => {
         fetchCVs();
-    }, [searchTerm, selectedTags, pagination.page]);
+    }, [searchTerm, selectedTags, demographicFilters, pagination.page]);
 
     // Function to fetch CVs from API with search parameters
     const fetchCVs = async () => {
@@ -40,46 +59,60 @@ export default function CandidateSearchPage() {
         setError(null);
 
         try {
-            // For demonstration, we'll use the mock data API
-            const response = await fetch('/api/mock-cvs');
+            // Use the advanced search API endpoint with all filters
+            const response = await fetch('/api/cvs/advanced-search', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    searchTerm,
+                    tags: selectedTags,
+                    demographic: demographicFilters,
+                    page: pagination.page,
+                    limit: pagination.limit
+                }),
+            });
+
             if (!response.ok) {
                 throw new Error('Failed to fetch CVs');
             }
 
             const data = await response.json();
 
-            // Filter based on search term and tags manually (since our mock API doesn't support server-side filtering)
-            let filteredCVs = data.cvs;
+            // Log the full CV data to inspect what's being returned from the API
+            console.log('Fetched CV data:', JSON.stringify(data.cvs, null, 2));
 
-            // Apply search term filter if provided
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                filteredCVs = filteredCVs.filter((cv: any) =>
-                    cv.filename.toLowerCase().includes(searchLower) ||
-                    cv.tags.some((tag: string) => tag.toLowerCase().includes(searchLower))
-                );
-            }
+            // Process the data to ensure proper formatting
+            const formattedCVs = data.cvs.map((cv: any) => ({
+                id: cv._id || cv.id,
+                _id: cv._id || cv.id,
+                filename: cv.filename,
+                uploadDate: cv.uploadDate,
+                analyzed: cv.analyzed,
+                status: cv.status || 'pending',
+                error: cv.error,
+                fileId: cv.fileId,
+                tags: cv.tags || [],
+                analysis: cv.analysis || {},
+                firstName: cv.firstName,
+                lastName: cv.lastName,
+                email: cv.email,
+                phone: cv.phone,
+                age: cv.age,
+                department: cv.department,
+                expectedSalary: cv.expectedSalary,
+                birthdate: cv.birthdate
+            }));
 
-            // Apply tag filters if provided
-            if (selectedTags.length > 0) {
-                filteredCVs = filteredCVs.filter((cv: any) =>
-                    selectedTags.every(tag => cv.tags.includes(tag))
-                );
-            }
+            console.log(`Processed ${formattedCVs.length} CVs with tags and demographics`);
 
-            // Create pagination data
-            const total = filteredCVs.length;
-            const pages = Math.ceil(total / pagination.limit);
-            const start = (pagination.page - 1) * pagination.limit;
-            const end = start + pagination.limit;
-            const paginatedCVs = filteredCVs.slice(start, end);
-
-            setCVs(paginatedCVs);
+            setCVs(formattedCVs);
             setPagination({
-                total,
-                page: pagination.page,
-                limit: pagination.limit,
-                pages
+                total: data.pagination.total,
+                page: data.pagination.page,
+                limit: data.pagination.limit,
+                pages: data.pagination.pages
             });
         } catch (error: any) {
             setError(error.message || 'Failed to load CVs');
@@ -92,7 +125,7 @@ export default function CandidateSearchPage() {
     // Handle viewing a CV
     const handleViewCV = (cv: ICV) => {
         setSelectedCV(cv);
-        setViewerOpen(true);
+        setDetailOpen(true);
     };
 
     // Handle viewing CV analysis
@@ -101,21 +134,89 @@ export default function CandidateSearchPage() {
         setAnalysisOpen(true);
     };
 
+    // Handle viewing CV file
+    const handleViewFile = (cv: ICV) => {
+        setSelectedCV(cv);
+        setViewerOpen(true);
+    };
+
     // Set page in pagination
     const setPage = (page: number) => {
         setPagination(prev => ({ ...prev, page }));
     };
 
-    // Get analyzed CVs count
-    const analyzedCount = cvs.filter(cv => cv.analyzed).length;
+    // Reset all filters
+    const resetFilters = () => {
+        setSearchTerm('');
+        setSelectedTags([]);
+        setDemographicFilters({});
+        setPagination(prev => ({ ...prev, page: 1 }));
+    };
+
+    // Check if any filters are active
+    const hasActiveFilters = searchTerm || selectedTags.length > 0 || Object.keys(demographicFilters).length > 0;
+
+    // Get count of active filters
+    const activeFilterCount = (searchTerm ? 1 : 0) + selectedTags.length + Object.keys(demographicFilters).length;
+
+    // Toggle between grid and table view
+    const toggleViewType = () => {
+        setViewType(prev => prev === 'grid' ? 'table' : 'grid');
+    };
+
+    // Handle filter changes with useCallback to prevent recreating functions on each render
+    const handleTagFilterChange = useCallback((tags: string[]) => {
+        setSelectedTags(tags);
+        setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
+    }, []);
+
+    const handleDemographicFilterChange = useCallback((filters: DemographicFilters) => {
+        setDemographicFilters(filters);
+        setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
+    }, []);
 
     return (
         <div className="container mx-auto py-6">
-            <h1 className="text-2xl font-bold mb-6">Candidate Search</h1>
+            <div className="flex justify-between items-center mb-6">
+                <h1 className="text-2xl font-bold">Candidate Search</h1>
+
+                <div className="flex items-center gap-2">
+                    {hasActiveFilters && (
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={resetFilters}
+                            className="flex items-center"
+                        >
+                            <Filter className="mr-2 h-4 w-4" />
+                            Clear Filters ({activeFilterCount})
+                        </Button>
+                    )}
+
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={toggleViewType}
+                        className="flex items-center"
+                    >
+                        {viewType === 'grid' ? (
+                            <>
+                                <List className="mr-2 h-4 w-4" />
+                                Table View
+                            </>
+                        ) : (
+                            <>
+                                <LayoutGrid className="mr-2 h-4 w-4" />
+                                Grid View
+                            </>
+                        )}
+                    </Button>
+                </div>
+            </div>
 
             <div className="flex flex-col gap-4 mb-6">
                 {/* Search and Filter */}
-                <div className="flex flex-col lg:flex-row justify-between gap-4">
+                <div className="flex flex-col md:flex-row gap-4">
                     <div className="relative flex-1">
                         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
                         <Input
@@ -129,34 +230,30 @@ export default function CandidateSearchPage() {
                         />
                     </div>
 
-                    <div className="w-full lg:w-auto">
-                        <TagFilterDropdown
-                            onFilterChange={(tags) => {
-                                setSelectedTags(tags);
-                                setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
-                            }}
-                            initialSelectedTags={selectedTags}
-                        />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                        <div className="w-full sm:w-auto">
+                            <TagFilterDropdown
+                                onFilterChange={handleTagFilterChange}
+                                initialSelectedTags={selectedTags}
+                            />
+                        </div>
+
+                        <div className="w-full sm:w-auto">
+                            <DemographicFilterDropdown
+                                onFilterChange={handleDemographicFilterChange}
+                                initialFilters={demographicFilters}
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="flex flex-row justify-between items-center text-sm text-gray-500">
                     <div>
-                        {analyzedCount} of {pagination.total} CVs analyzed
-                        {analyzedCount < pagination.total && (
-                            <Button
-                                variant="link"
-                                size="sm"
-                                onClick={() => router.push('/cvs')}
-                                className="text-xs ml-2"
-                            >
-                                Analyze more CVs
-                            </Button>
-                        )}
+                        Showing {cvs.length} of {pagination.total} CVs
                     </div>
 
                     <div>
-                        {cvs.length} candidate{cvs.length !== 1 ? 's' : ''} found {pagination.total > 0 ? `(${pagination.total} total)` : ''}
+                        {pagination.total} candidate{pagination.total !== 1 ? 's' : ''} found with current filters
                     </div>
                 </div>
             </div>
@@ -177,20 +274,30 @@ export default function CandidateSearchPage() {
                 </div>
             ) : (
                 <>
-                    {/* CV grid */}
+                    {/* CV display - grid or table view based on viewType */}
                     {cvs.length > 0 ? (
                         <>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                                {cvs.map((cv) => (
-                                    <div key={cv.id}>
-                                        <CVCard
-                                            cv={cv}
-                                            onView={handleViewCV}
-                                            onViewAnalysis={cv.analyzed ? handleViewAnalysis : undefined}
-                                        />
-                                    </div>
-                                ))}
-                            </div>
+                            {viewType === 'grid' ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                    {cvs.map((cv) => (
+                                        <div key={cv.id}>
+                                            <CVCard
+                                                cv={cv}
+                                                onView={handleViewCV}
+                                                onViewFile={handleViewFile}
+                                                onViewAnalysis={cv.analyzed ? handleViewAnalysis : undefined}
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <CVTableView
+                                    cvs={cvs}
+                                    onView={handleViewCV}
+                                    onViewFile={handleViewFile}
+                                    onViewAnalysis={handleViewAnalysis}
+                                />
+                            )}
 
                             {/* Pagination */}
                             {pagination.pages > 1 && (
@@ -247,48 +354,39 @@ export default function CandidateSearchPage() {
                         <div className="text-center py-8">
                             <FileUp className="h-8 w-8 mx-auto text-gray-400" />
                             <p className="mt-2 text-gray-500">
-                                {searchTerm || selectedTags.length > 0
-                                    ? 'No candidates match your search criteria.'
-                                    : 'No candidates available. Please upload real CVs to get started.'}
+                                {hasActiveFilters
+                                    ? 'No candidates match your search criteria. Try adjusting your filters.'
+                                    : 'No CVs found in the database. Please upload CVs to get started.'}
                             </p>
-                            {(searchTerm || selectedTags.length > 0) && (
-                                <Button
-                                    variant="outline"
-                                    className="mt-4"
-                                    onClick={() => {
-                                        setSearchTerm('');
-                                        setSelectedTags([]);
-                                        setPagination(prev => ({ ...prev, page: 1 }));
-                                    }}
-                                >
-                                    Clear all filters
-                                </Button>
-                            )}
-                            <Button
-                                variant="default"
-                                className="mt-4 ml-2"
-                                onClick={() => router.push('/cvs')}
-                            >
-                                Upload CVs
-                            </Button>
                         </div>
                     )}
                 </>
             )}
 
-            {/* CV Viewer Dialog */}
-            <CVViewer
+            {/* CV Detail Dialog */}
+            <CVDetailDialog
                 cv={selectedCV}
-                open={viewerOpen}
-                onOpenChange={setViewerOpen}
+                open={detailOpen}
+                onOpenChange={setDetailOpen}
             />
 
-            {/* CV Analysis Dialog */}
-            <CVAnalysisDialog
-                cv={selectedCV}
-                open={analysisOpen}
-                onOpenChange={setAnalysisOpen}
-            />
+            {/* CV Viewer Modal */}
+            {selectedCV && (
+                <CVViewer
+                    open={viewerOpen}
+                    onOpenChange={setViewerOpen}
+                    cv={selectedCV}
+                />
+            )}
+
+            {/* CV Analysis Modal */}
+            {selectedCV && (
+                <CVAnalysisDialog
+                    open={analysisOpen}
+                    onOpenChange={setAnalysisOpen}
+                    cv={selectedCV}
+                />
+            )}
         </div>
     );
 } 

@@ -11,12 +11,17 @@ export interface ICV {
     error?: string;
     fileId: string;
     tags: string[];
+
+    // Demographic information
+    firstName?: string;
+    lastName?: string;
     age?: number;
     department?: string;
     email?: string;
     phone?: string;
     birthdate?: string;
     expectedSalary?: number;
+
     originalTextFileId?: string;
     enhancedTextFileId?: string;
     parsedData?: any;
@@ -62,6 +67,8 @@ class CVStore {
             analyzed: cv.analyzed,
             fileId: cv.fileId,
             tags: cv.tags,
+            firstName: cv.firstName,
+            lastName: cv.lastName,
             age: cv.age,
             department: cv.department,
             email: cv.email,
@@ -87,6 +94,8 @@ class CVStore {
             analyzed: cv.analyzed,
             fileId: cv.fileId,
             tags: cv.tags,
+            firstName: cv.firstName,
+            lastName: cv.lastName,
             age: cv.age,
             department: cv.department,
             email: cv.email,
@@ -181,6 +190,8 @@ class CVStore {
             analyzed: cv.analyzed,
             fileId: cv.fileId,
             tags: cv.tags,
+            firstName: cv.firstName,
+            lastName: cv.lastName,
             age: cv.age,
             department: cv.department,
             email: cv.email,
@@ -207,6 +218,8 @@ class CVStore {
             analyzed: cv.analyzed,
             fileId: cv.fileId,
             tags: cv.tags,
+            firstName: cv.firstName,
+            lastName: cv.lastName,
             age: cv.age,
             department: cv.department,
             email: cv.email,
@@ -233,6 +246,8 @@ class CVStore {
             analyzed: cv.analyzed,
             fileId: cv.fileId,
             tags: cv.tags,
+            firstName: cv.firstName,
+            lastName: cv.lastName,
             age: cv.age,
             department: cv.department,
             email: cv.email,
@@ -270,6 +285,28 @@ class CVStore {
         // Convert buffer to string
         return buffer.toString('utf-8');
     }
+
+    // Function to handle browser File objects
+    async saveCVFile(file: File): Promise<ICV> {
+        await this.ensureInitialized();
+
+        try {
+            // Convert File to Buffer
+            const arrayBuffer = await file.arrayBuffer();
+            const buffer = Buffer.from(arrayBuffer);
+
+            // Upload the file
+            return this.addCV(buffer, file.name, file.type);
+        } catch (error) {
+            console.error('Error saving CV file:', error);
+            throw error;
+        }
+    }
 }
 
-export const cvStore = CVStore.getInstance(); 
+export const cvStore = CVStore.getInstance();
+
+// Function to handle browser File objects
+export async function saveCVFile(file: File): Promise<ICV> {
+    return cvStore.saveCVFile(file);
+} 

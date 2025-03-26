@@ -1,93 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import CV from '@/models/CV';
 import { connectDB } from '@/lib/mongodb';
-import dbConnect from '@/lib/db';
-
-export async function GET(request: NextRequest) {
-    try {
-        // Connect to MongoDB
-        await connectDB();
-
-        // Get search parameters from URL
-        const searchParams = request.nextUrl.searchParams;
-        const query = searchParams.get('query') || '';
-        const tags = searchParams.getAll('tags');
-        const limit = parseInt(searchParams.get('limit') || '50', 10);
-        const page = parseInt(searchParams.get('page') || '1', 10);
-        const skip = (page - 1) * limit;
-
-        // Prepare search filter
-        const filter: any = {};
-
-        // Add text search if query provided
-        if (query) {
-            filter.$text = { $search: query };
-        }
-
-        // Add tag filtering if tags provided
-        if (tags && tags.length > 0) {
-            filter.tags = { $all: tags };
-        }
-
-        // Get total count for pagination
-        const total = await CV.countDocuments(filter);
-
-        // Get CVs with pagination
-        const cvs = await CV.find(filter)
-            .sort({ uploadDate: -1 })
-            .skip(skip)
-            .limit(limit)
-            .lean();
-
-        // Format CV response
-        const formattedCVs = cvs.map((cv: any) => ({
-            id: cv._id.toString(),
-            filename: cv.filename,
-            uploadDate: cv.uploadDate,
-            analyzed: cv.analyzed,
-            status: cv.status || 'pending',
-            error: cv.error,
-            fileId: cv.fileId,
-            tags: cv.tags || [],
-            analysis: cv.analysis || {},
-            email: cv.email,
-            phone: cv.phone,
-            age: cv.age,
-            department: cv.department,
-            expectedSalary: cv.expectedSalary
-        }));
-
-        // Return response with pagination metadata
-        return NextResponse.json({
-            cvs: formattedCVs,
-            pagination: {
-                total,
-                page,
-                limit,
-                pages: Math.ceil(total / limit)
-            }
-        });
-    } catch (error: any) {
-        console.error('Error searching CVs:', error);
-        return NextResponse.json(
-            { error: error.message || 'Failed to search CVs' },
-            { status: 500 }
-        );
-    }
-}
-
-// Handle OPTIONS requests for CORS
-export async function OPTIONS() {
-    return new NextResponse(null, {
-        status: 204,
-        headers: {
-            'Access-Control-Allow-Credentials': 'true',
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Methods': 'GET,OPTIONS,PATCH,DELETE,POST,PUT',
-            'Access-Control-Allow-Headers': 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version',
-        },
-    });
-}
 
 export async function POST(req: NextRequest) {
     try {
@@ -145,6 +58,8 @@ export async function POST(req: NextRequest) {
         const limit = searchParams.limit || 20;
         const skip = (page - 1) * limit;
 
+        console.log('MongoDB query:', JSON.stringify(query));
+
         // Execute query with pagination
         const cvs = await CV.find(query)
             .sort({ uploadDate: -1 })
@@ -155,8 +70,34 @@ export async function POST(req: NextRequest) {
         // Get total count for pagination
         const total = await CV.countDocuments(query);
 
+        // Transform CV data to ensure all required fields are included
+        const formattedCVs = cvs.map(cv => {
+            // Get string representation of _id and handle case when it might be undefined
+            const idString = cv._id ? cv._id.toString() : '';
+
+            // Create formatted CV with all fields
+            const formattedCV = {
+                ...cv,
+                id: idString,
+                _id: idString,
+                // Ensure all required fields exist with defaults if missing
+                tags: cv.tags || [],
+                analysis: cv.analysis || {},
+                firstName: cv.firstName || '',
+                lastName: cv.lastName || '',
+                email: cv.email || '',
+                phone: cv.phone || '',
+                department: cv.department || '',
+                birthdate: cv.birthdate || '',
+                age: cv.age || null,
+                expectedSalary: cv.expectedSalary || null,
+                status: cv.status || 'pending',
+            };
+            return formattedCV;
+        });
+
         return NextResponse.json({
-            cvs,
+            cvs: formattedCVs,
             pagination: {
                 total,
                 page,

@@ -18,6 +18,13 @@ const system_message_cv = `
 You are an expert CV analyzer for a resort. Your task is to extract relevant information from CVs and categorize them according to specific tags.
 Analyze the CV text and identify the following categories:
 
+## 0. Demographics
+- First Name (extract the candidate's first name)
+- Last Name (extract the candidate's last name)
+- Email Address (extract the candidate's email address)
+- Phone Number (extract the candidate's phone number)
+- Date of Birth or Age (extract the candidate's date of birth or age)
+
 ## 1. Age
 - 18 under
 - 18-22
@@ -301,6 +308,17 @@ Analyze the CV text and identify the following categories:
 
 Return your analysis as a JSON object with these categories as keys and the identified tags as values. Organize the structure with main categories and subcategories as defined above.
 
+For demographic information, include a "Demographics" object in your response with the following structure:
+{
+  "Demographics": {
+    "firstName": "...",
+    "lastName": "...",
+    "email": "...",
+    "phone": "...",
+    "birthdate": "..."
+  }
+}
+
 # Note:
 - Make sure the language for the tag is English.
 - Do not add other tags other than these tags.
@@ -308,6 +326,8 @@ Return your analysis as a JSON object with these categories as keys and the iden
 - We are in 2025 and calculate ages accordingly.
 - If you cannot find the age, leave it blank.
 - Calculate experience in years.
+- Always make your best effort to extract demographic information, even if incomplete.
+- Format the birthdate in YYYY-MM-DD format if possible.
 `;
 
 /**
