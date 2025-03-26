@@ -8,13 +8,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ICV } from '@/lib/cv-store';
-import CVUploader from '@/app/components/CV/CVUploader';
-import CVCard from '@/app/components/CV/CVCard';
-import CVViewer from '@/app/components/CV/CVViewer';
-import CVAnalysisDialog from '@/app/components/CV/CVAnalysisDialog';
+import CVUploader from '../components/CV/CVUploader';
+import CVCard from '../components/CV/CVCard';
+import CVViewer from '../components/CV/CVViewer';
+import CVAnalysisDialog from '../components/CV/CVAnalysisDialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { FileUp, Search, CircleAlert, RefreshCw } from 'lucide-react';
-import { toast } from '@/components/ui/use-toast';
+import { useToast } from '@/components/ui/use-toast';
 
 export default function CVsPage() {
     const router = useRouter();
@@ -27,6 +27,7 @@ export default function CVsPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedCVs, setSelectedCVs] = useState<string[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const { toast } = useToast();
 
     // Fetch CVs on component mount
     useEffect(() => {

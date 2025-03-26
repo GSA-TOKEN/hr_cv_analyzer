@@ -39,38 +39,47 @@ const tagCategories: Record<string, TagCategory> = {
     'age': {
         label: 'Age',
         options: [
-            '18-under',
+            'under-18',
             '18-22',
             '23-28',
             '28-35',
             '36-45',
-            '46+',
+            '46+'
         ]
     },
     'language': {
         label: 'Languages',
         options: [
-            'english-basic',
-            'english-intermediate',
-            'english-advanced',
-            'english-fluent',
             'english-native',
-            'russian-basic',
-            'russian-intermediate',
-            'russian-advanced',
-            'russian-fluent',
-            'russian-native',
-            'german-basic',
-            'german-intermediate',
-            'german-advanced',
-            'german-fluent',
+            'english-fluent',
+            'english-advanced',
+            'english-intermediate',
+            'english-basic',
+            'french-native',
+            'french-fluent',
+            'french-advanced',
+            'french-intermediate',
+            'french-basic',
             'german-native',
-            'turkish-basic',
-            'turkish-intermediate',
-            'turkish-advanced',
-            'turkish-fluent',
+            'german-fluent',
+            'german-advanced',
+            'german-intermediate',
+            'german-basic',
+            'spanish-native',
+            'spanish-fluent',
+            'spanish-advanced',
+            'spanish-intermediate',
+            'spanish-basic',
             'turkish-native',
-            // Other languages can be added as needed
+            'turkish-fluent',
+            'turkish-advanced',
+            'turkish-intermediate',
+            'turkish-basic',
+            'russian-native',
+            'russian-fluent',
+            'russian-advanced',
+            'russian-intermediate',
+            'russian-basic'
         ]
     },
     'education': {
@@ -148,71 +157,95 @@ const tagCategories: Record<string, TagCategory> = {
             'executive'
         ]
     },
-    'skill': {
+    'technical-skill': {
         label: 'Technical Skills',
         groups: {
-            'front-office-reservation-crm-call-center': {
-                label: 'Front Office / Reservation / CRM',
+            'front-office': {
+                label: 'Front Office / Reservation',
                 options: [
                     'pms-systems',
                     'booking-engines',
-                    'payment-processing-systems',
+                    'payment-processing',
                     'crm-software',
-                    'call-center-technologies',
-                    'upselling-techniques',
                     'channel-management',
                     'yield-management',
                     'guest-loyalty-programs',
-                    'check-in-check-out-procedures',
-                    'foreign-exchange-handling',
+                    'check-in-out-procedures',
+                    'foreign-exchange',
                     'complaint-management'
                 ]
             },
-            'housekeeping-laundry-flower-center': {
+            'housekeeping': {
                 label: 'Housekeeping / Laundry',
                 options: [
                     'inventory-management',
-                    'chemical-handling',
                     'quality-control',
-                    'industrial-equipment-operation',
                     'room-inspection',
                     'sustainability-practices',
                     'linen-management',
                     'deep-cleaning-protocols',
-                    'floral-arrangement',
-                    'decorative-displays',
                     'amenity-setup',
                     'vip-room-preparation'
                 ]
             },
-            'f-b-kitchen-dishroom': {
+            'fb-kitchen': {
                 label: 'F&B / Kitchen',
                 options: [
-                    'food-safety-certification',
+                    'food-safety',
                     'culinary-techniques',
                     'menu-planning',
                     'cost-control',
                     'pos-systems',
-                    'specialty-cuisine-knowledge',
+                    'specialty-cuisine',
                     'beverage-service',
                     'banquet-operations',
                     'buffet-management',
-                    'à-la-carte-service',
-                    'restaurant-reservation-systems',
+                    'restaurant-reservation',
                     'allergen-management',
                     'wine-knowledge',
                     'cocktail-preparation'
                 ]
             },
-            // Other technical skill categories can be added
+            'it-technical': {
+                label: 'IT / Technical',
+                options: [
+                    'project-management',
+                    'software-development',
+                    'database-management',
+                    'network-administration',
+                    'system-analysis',
+                    'ui-ux-design',
+                    'mobile-development',
+                    'web-development',
+                    'cloud-services',
+                    'cybersecurity',
+                    'data-analysis',
+                    'it-support'
+                ]
+            },
+            'accounting-finance': {
+                label: 'Accounting / Finance',
+                options: [
+                    'financial-analysis',
+                    'budgeting',
+                    'forecasting',
+                    'auditing',
+                    'payroll-management',
+                    'accounts-receivable',
+                    'accounts-payable',
+                    'tax-preparation',
+                    'financial-reporting',
+                    'bookkeeping'
+                ]
+            }
         }
     },
     'soft-skill': {
         label: 'Soft Skills',
         options: [
-            'guest-communication',
-            'problem-resolution',
-            'team-leadership',
+            'communication',
+            'problem-solving',
+            'leadership',
             'conflict-management',
             'time-management',
             'attention-to-detail',
@@ -237,24 +270,18 @@ const tagCategories: Record<string, TagCategory> = {
         options: [
             'food-safety',
             'first-aid-cpr',
-            'lifeguard-certification',
+            'lifeguard',
             'fire-safety',
-            'security-certification',
-            'spa-wellness-certifications',
-            'sommelier-beverage-certifications',
+            'security',
+            'spa-wellness',
+            'sommelier',
             'revenue-management',
             'environmental-management',
             'health-safety',
             'project-management',
-            'it-certifications',
-            'guest-service-gold',
-            'financial-certifications',
-            'hospitality-management-certification',
-            'training-certification',
-            'pool-operations',
-            'fitness-instruction',
-            'language-certifications',
-            'eco-certification'
+            'it-certification',
+            'guest-service',
+            'hospitality-management'
         ]
     }
 };
@@ -269,12 +296,12 @@ const TagFilterDropdown: React.FC<TagFilterDropdownProps> = ({
     initialSelectedTags = []
 }) => {
     const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags);
-    const [open, setOpen] = useState(false);
 
     useEffect(() => {
         onFilterChange(selectedTags);
     }, [selectedTags, onFilterChange]);
 
+    // Toggle tag selection
     const toggleTag = (tag: string) => {
         setSelectedTags(prev =>
             prev.includes(tag)
@@ -283,160 +310,139 @@ const TagFilterDropdown: React.FC<TagFilterDropdownProps> = ({
         );
     };
 
+    // Clear all filters
     const clearFilters = () => {
         setSelectedTags([]);
     };
 
-    // Helper to render regular options
+    // Render category options
     const renderOptions = (category: string, options: string[]) => {
-        return options.map(option => {
-            const fullTag = `${category}:${option}`;
-            const isSelected = selectedTags.includes(fullTag);
+        return (
+            <div className="grid grid-cols-1 gap-1">
+                {options.map((option) => {
+                    const tag = `${category}:${option}`;
+                    const isSelected = selectedTags.includes(tag);
 
-            return (
-                <DropdownMenuItem
-                    key={fullTag}
-                    onSelect={(e) => {
-                        e.preventDefault();
-                        toggleTag(fullTag);
-                    }}
-                    className="flex items-center justify-between"
-                >
-                    <span className="capitalize">{option.replace(/-/g, ' ')}</span>
-                    {isSelected && <Check className="h-4 w-4 text-green-600" />}
-                </DropdownMenuItem>
-            );
-        });
+                    return (
+                        <DropdownMenuItem
+                            key={option}
+                            onSelect={(e) => {
+                                e.preventDefault();
+                                toggleTag(tag);
+                            }}
+                            className={`flex items-center justify-between px-2 py-1.5 cursor-pointer ${isSelected ? 'bg-muted' : ''}`}
+                        >
+                            <span className="mr-2">{option.split('-').join(' ')}</span>
+                            {isSelected && <Check className="h-4 w-4" />}
+                        </DropdownMenuItem>
+                    );
+                })}
+            </div>
+        );
     };
 
-    // Helper to render nested skill options
+    // Render skill options with nested submenus
     const renderSkillOptions = (category: string, groups: Record<string, { label: string, options: string[] }>) => {
-        return Object.entries(groups).map(([groupKey, group]) => (
-            <DropdownMenuSub key={groupKey}>
-                <DropdownMenuSubTrigger>{group.label}</DropdownMenuSubTrigger>
-                <DropdownMenuPortal>
-                    <DropdownMenuSubContent>
-                        {group.options.map(option => {
-                            const fullTag = `${category}:${groupKey}:${option}`;
-                            const isSelected = selectedTags.includes(fullTag);
+        return (
+            <div className="space-y-1">
+                {Object.entries(groups).map(([groupKey, group]) => (
+                    <DropdownMenuSub key={groupKey}>
+                        <DropdownMenuSubTrigger className="px-2 py-1.5">
+                            <span>{group.label}</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                            <DropdownMenuSubContent className="min-w-[220px] max-h-[500px] overflow-y-auto">
+                                <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                {renderOptions(`${category}:${groupKey}`, group.options)}
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                ))}
+            </div>
+        );
+    };
 
-                            return (
-                                <DropdownMenuItem
-                                    key={fullTag}
-                                    onSelect={(e) => {
-                                        e.preventDefault();
-                                        toggleTag(fullTag);
-                                    }}
-                                    className="flex items-center justify-between"
-                                >
-                                    <span className="capitalize">{option.replace(/-/g, ' ')}</span>
-                                    {isSelected && <Check className="h-4 w-4 text-green-600" />}
-                                </DropdownMenuItem>
-                            );
-                        })}
-                    </DropdownMenuSubContent>
-                </DropdownMenuPortal>
-            </DropdownMenuSub>
-        ));
+    // Add proper display of tag prefixes and cleaner formatting
+    const getTagDisplay = (category: string, value: string): { category: string, value: string } => {
+        // Find the proper category label
+        const categoryKey = Object.keys(tagCategories).find(key => key === category);
+        const categoryLabel = categoryKey ? tagCategories[categoryKey].label : category;
+
+        // Format display value
+        let displayValue = value.split('-').join(' ');
+
+        // Special formatting for nested technical skills
+        if (category === 'technical-skill') {
+            const [group, skill] = value.split(':');
+            if (skill) {
+                // Get group label if available
+                let groupLabel = group;
+                if (categoryKey && hasGroups(tagCategories[categoryKey])) {
+                    const groups = (tagCategories[categoryKey] as CategoryWithGroups).groups;
+                    if (groups[group]) {
+                        groupLabel = groups[group].label;
+                    }
+                }
+                displayValue = `${groupLabel}: ${skill.split('-').join(' ')}`;
+            }
+        }
+
+        return {
+            category: categoryLabel,
+            value: displayValue
+        };
     };
 
     return (
-        <div className="flex flex-col gap-2">
-            <div className="flex flex-wrap gap-2">
-                <DropdownMenu open={open} onOpenChange={setOpen}>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="flex items-center">
-                            <Filter className="h-4 w-4 mr-2" />
-                            Filter by tags
-                            <ChevronDown className="h-4 w-4 ml-2" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-72">
-                        <DropdownMenuLabel className="flex justify-between items-center">
-                            <span>Filter by tags</span>
-                            {selectedTags.length > 0 && (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={clearFilters}
-                                    className="h-6 px-2 text-xs"
-                                >
-                                    Clear all
-                                </Button>
-                            )}
-                        </DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-
-                        {Object.entries(tagCategories).map(([category, categoryData]) => (
-                            <React.Fragment key={category}>
-                                {/* For regular categories with simple options */}
-                                {!hasGroups(categoryData) && (
-                                    <DropdownMenuSub>
-                                        <DropdownMenuSubTrigger>{categoryData.label}</DropdownMenuSubTrigger>
-                                        <DropdownMenuPortal>
-                                            <DropdownMenuSubContent>
-                                                {renderOptions(category, categoryData.options)}
-                                            </DropdownMenuSubContent>
-                                        </DropdownMenuPortal>
-                                    </DropdownMenuSub>
-                                )}
-
-                                {/* For technical skills with nested groups */}
-                                {hasGroups(categoryData) && (
-                                    <DropdownMenuSub>
-                                        <DropdownMenuSubTrigger>{categoryData.label}</DropdownMenuSubTrigger>
-                                        <DropdownMenuPortal>
-                                            <DropdownMenuSubContent>
-                                                {renderSkillOptions(category, categoryData.groups)}
-                                            </DropdownMenuSubContent>
-                                        </DropdownMenuPortal>
-                                    </DropdownMenuSub>
-                                )}
-
-                                <DropdownMenuSeparator />
-                            </React.Fragment>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
-                {selectedTags.length > 0 && (
+        <div className="w-full sm:w-auto">
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                     <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={clearFilters}
-                        className="h-9"
+                        variant={selectedTags.length > 0 ? "default" : "outline"}
+                        className="w-full sm:w-auto justify-between"
                     >
-                        Clear filters
+                        <div className="flex items-center">
+                            <Filter className="h-4 w-4 mr-2" />
+                            <span>
+                                {selectedTags.length > 0
+                                    ? `${selectedTags.length} Filter${selectedTags.length > 1 ? 's' : ''} Active`
+                                    : 'Filter Candidates'}
+                            </span>
+                        </div>
+                        <ChevronDown className="h-4 w-4 ml-2" />
                     </Button>
-                )}
-            </div>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-[280px] max-h-[500px] overflow-y-auto" align="end">
+                    <DropdownMenuLabel className="flex items-center justify-between">
+                        <span>Filter by Candidate Attributes</span>
+                        {selectedTags.length > 0 && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto p-0 font-normal text-xs text-muted-foreground hover:text-foreground"
+                                onClick={clearFilters}
+                            >
+                                Clear All
+                            </Button>
+                        )}
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
 
-            {/* Display selected filters as badges */}
-            {selectedTags.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
-                    {selectedTags.map(tag => {
-                        const [category, ...rest] = tag.split(':');
-                        const displayValue = rest.join(':').replace(/-/g, ' ');
-                        const categoryInfo = tagCategories[category];
-
-                        return (
-                            <Badge key={tag} variant="secondary" className="pl-2 pr-1 py-1">
-                                <span className="mr-1">
-                                    <strong>{categoryInfo?.label || category}:</strong> {displayValue}
-                                </span>
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => toggleTag(tag)}
-                                    className="h-5 w-5 p-0 ml-1"
-                                >
-                                    <X className="h-3 w-3" />
-                                </Button>
-                            </Badge>
-                        );
-                    })}
-                </div>
-            )}
+                    {Object.entries(tagCategories).map(([key, category]) => (
+                        <DropdownMenuGroup key={key}>
+                            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">{category.label}</DropdownMenuLabel>
+                            {hasGroups(category)
+                                ? renderSkillOptions(key, category.groups)
+                                : renderOptions(key, category.options)
+                            }
+                            {key !== Object.keys(tagCategories)[Object.keys(tagCategories).length - 1] && (
+                                <DropdownMenuSeparator />
+                            )}
+                        </DropdownMenuGroup>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     );
 };

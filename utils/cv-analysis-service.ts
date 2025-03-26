@@ -186,7 +186,9 @@ export class CVAnalysisService {
                         establishments: Array.isArray(parsedCV.Experience["Establishment Type"])
                             ? parsedCV.Experience["Establishment Type"]
                             : (parsedCV.Experience["Establishment Type"] ? [parsedCV.Experience["Establishment Type"]] : []),
-                        position: parsedCV.Experience["Position Level"] || ""
+                        position: Array.isArray(parsedCV.Experience["Position Level"])
+                            ? parsedCV.Experience["Position Level"][0] || "" // Take first position if it's an array
+                            : (parsedCV.Experience["Position Level"] || "")
                     } : {},
                     technicalSkills: parsedCV["Technical Skills"] ?
                         Object.entries(parsedCV["Technical Skills"]).flatMap(([category, skills]) => {
@@ -194,11 +196,11 @@ export class CVAnalysisService {
                             return skillArray.filter(s => s && typeof s === 'string');
                         }) : [],
                     softSkills: Array.isArray(parsedCV["Soft Skills"])
-                        ? parsedCV["Soft Skills"]
-                        : (parsedCV["Soft Skills"] ? [parsedCV["Soft Skills"]] : []),
+                        ? parsedCV["Soft Skills"].filter((skill: any) => skill && typeof skill === 'string')
+                        : (parsedCV["Soft Skills"] && typeof parsedCV["Soft Skills"] === 'string' ? [parsedCV["Soft Skills"]] : []),
                     certifications: Array.isArray(parsedCV.Certifications)
-                        ? parsedCV.Certifications
-                        : (parsedCV.Certifications ? [parsedCV.Certifications] : [])
+                        ? parsedCV.Certifications.filter((cert: any) => cert && typeof cert === 'string')
+                        : (parsedCV.Certifications && typeof parsedCV.Certifications === 'string' ? [parsedCV.Certifications] : [])
                 },
                 // Extract additional fields if available
                 ...(parsedCV.email && { email: parsedCV.email }),

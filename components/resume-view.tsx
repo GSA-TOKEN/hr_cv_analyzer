@@ -325,20 +325,9 @@ export default function ResumeView() {
         });
     };
 
-    // Add tag filter section to the UI
+    // Add tag filter section to the UI - commented out to hide tags as requested
     const renderTagFilters = () => (
-        <div className="flex flex-wrap gap-2 mb-4">
-            {availableTags.map((tag: string, index: number) => (
-                <Badge
-                    key={index}
-                    variant={selectedTags.includes(tag) ? "default" : "outline"}
-                    className="cursor-pointer hover:bg-primary/10"
-                    onClick={() => handleTagSelect(tag)}
-                >
-                    {tag}
-                </Badge>
-            ))}
-        </div>
+        <></>
     );
 
     const renderCV = (cv: ICV) => {
@@ -363,17 +352,13 @@ export default function ResumeView() {
                 </CardHeader>
                 <CardContent className="pb-2">
                     {cv.fileId ? (
-                        <div className="flex flex-wrap gap-1 min-w-0">
-                            {cv.tags?.slice(0, 3).map((tag, index) => (
-                                <Badge key={index} variant="secondary" className="truncate max-w-[150px]">
-                                    {tag}
-                                </Badge>
-                            ))}
-                            {(cv.tags?.length || 0) > 3 && (
-                                <Badge variant="secondary">
-                                    +{(cv.tags?.length || 0) - 3} more
-                                </Badge>
-                            )}
+                        <div className="text-sm text-gray-500">
+                            {cv.analyzed ?
+                                <p className="text-green-600">Analysis complete</p> :
+                                <p>Not yet analyzed</p>
+                            }
+                            {cv.email && <p className="truncate">{cv.email}</p>}
+                            {cv.phone && <p className="truncate">{cv.phone}</p>}
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">No CV uploaded</p>
@@ -435,11 +420,6 @@ export default function ResumeView() {
                     </Tabs>
 
                     <div className="text-sm text-muted-foreground">
-                        {selectedTags.length > 0 && (
-                            <span className="mr-2">
-                                Filtered by {selectedTags.length} tag(s)
-                            </span>
-                        )}
                         Showing {filteredFiles.length} {filter === "hasCv" ? "resumes with CV" : filter === "analyzed" ? "analyzed resumes" : filter === "unanalyzed" ? "unanalyzed resumes" : "resumes"}
                     </div>
                 </div>

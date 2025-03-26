@@ -33,7 +33,7 @@ export async function fixCV(cvText: string): Promise<string> {
             : cvText;
 
         const response = await openai.chat.completions.create({
-            model: 'gpt-4',
+            model: 'gpt-4o',
             messages: [
                 {
                     role: 'system',

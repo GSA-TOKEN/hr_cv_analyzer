@@ -40,30 +40,48 @@ export default function CandidateSearchPage() {
         setError(null);
 
         try {
-            // Build search URL with parameters
-            const searchParams = new URLSearchParams();
-
-            if (searchTerm) {
-                searchParams.append('query', searchTerm);
-            }
-
-            selectedTags.forEach(tag => {
-                searchParams.append('tags', tag);
-            });
-
-            searchParams.append('limit', pagination.limit.toString());
-            searchParams.append('page', pagination.page.toString());
-
-            const url = `/api/cvs/search?${searchParams.toString()}`;
-
-            const response = await fetch(url);
+            // For demonstration, we'll use the mock data API
+            const response = await fetch('/api/mock-cvs');
             if (!response.ok) {
                 throw new Error('Failed to fetch CVs');
             }
 
             const data = await response.json();
-            setCVs(data.cvs);
-            setPagination(data.pagination);
+
+            // Filter based on search term and tags manually (since our mock API doesn't support server-side filtering)
+            let filteredCVs = data.cvs;
+
+            // Apply search term filter if provided
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                filteredCVs = filteredCVs.filter((cv: any) =>
+                    cv.filename.toLowerCase().includes(searchLower) ||
+                    (cv.email && cv.email.toLowerCase().includes(searchLower)) ||
+                    cv.tags.some((tag: string) => tag.toLowerCase().includes(searchLower))
+                );
+            }
+
+            // Apply tag filters if provided
+            if (selectedTags.length > 0) {
+                filteredCVs = filteredCVs.filter((cv: any) =>
+                    selectedTags.every(tag => cv.tags.includes(tag))
+                );
+            }
+
+            // Create pagination data
+            const total = filteredCVs.length;
+            const pages = Math.ceil(total / pagination.limit);
+            const start = (pagination.page - 1) * pagination.limit;
+            const end = start + pagination.limit;
+            const paginatedCVs = filteredCVs.slice(start, end);
+
+            setCVs(paginatedCVs);
+            setPagination({
+                total,
+                page: pagination.page,
+                limit: pagination.limit,
+                pages
+            });
         } catch (error: any) {
             setError(error.message || 'Failed to load CVs');
             console.error('Error fetching CVs:', error);
@@ -96,47 +114,51 @@ export default function CandidateSearchPage() {
         <div className="container mx-auto py-6">
             <h1 className="text-2xl font-bold mb-6">Candidate Search</h1>
 
-            <div className="flex flex-col sm:flex-row justify-between gap-4 mb-4">
-                <div className="flex items-center gap-2">
-                    <p className="text-sm text-gray-500">
+            <div className="flex flex-col gap-4 mb-6">
+                {/* Search and Filter */}
+                <div className="flex flex-col lg:flex-row justify-between gap-4">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
+                        <Input
+                            placeholder="Search candidates by name, skills, or experience..."
+                            className="pl-10"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search change
+                            }}
+                        />
+                    </div>
+
+                    <div className="w-full lg:w-auto">
+                        <TagFilterDropdown
+                            onFilterChange={(tags) => {
+                                setSelectedTags(tags);
+                                setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
+                            }}
+                            initialSelectedTags={selectedTags}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex flex-row justify-between items-center text-sm text-gray-500">
+                    <div>
                         {analyzedCount} of {pagination.total} CVs analyzed
-                    </p>
-                    {analyzedCount < pagination.total && (
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => router.push('/cvs')}
-                            className="text-xs"
-                        >
-                            Analyze more CVs
-                        </Button>
-                    )}
-                </div>
-            </div>
+                        {analyzedCount < pagination.total && (
+                            <Button
+                                variant="link"
+                                size="sm"
+                                onClick={() => router.push('/cvs')}
+                                className="text-xs ml-2"
+                            >
+                                Analyze more CVs
+                            </Button>
+                        )}
+                    </div>
 
-            {/* Search and Filter */}
-            <div className="flex flex-col sm:flex-row justify-between gap-4 mb-6">
-                <div className="relative flex-1">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 h-4 w-4" />
-                    <Input
-                        placeholder="Search candidates..."
-                        className="pl-10"
-                        value={searchTerm}
-                        onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on search change
-                        }}
-                    />
-                </div>
-
-                <div className="flex-shrink-0">
-                    <TagFilterDropdown
-                        onFilterChange={(tags) => {
-                            setSelectedTags(tags);
-                            setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
-                        }}
-                        initialSelectedTags={selectedTags}
-                    />
+                    <div>
+                        {cvs.length} candidate{cvs.length !== 1 ? 's' : ''} found {pagination.total > 0 ? `(${pagination.total} total)` : ''}
+                    </div>
                 </div>
             </div>
 
@@ -156,11 +178,6 @@ export default function CandidateSearchPage() {
                 </div>
             ) : (
                 <>
-                    {/* Results */}
-                    <div className="mb-2 text-sm text-gray-500">
-                        {cvs.length} candidate{cvs.length !== 1 ? 's' : ''} found {pagination.total > 0 ? `(${pagination.total} total)` : ''}
-                    </div>
-
                     {/* CV grid */}
                     {cvs.length > 0 ? (
                         <>

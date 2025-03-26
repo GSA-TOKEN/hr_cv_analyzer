@@ -345,7 +345,7 @@ export async function parseCV(cvText: string): Promise<any> {
 }
 
 /**
- * Convert parsed CV data to tags
+ * Convert parsed CV to tags for filtering and categorization
  * @param parsedCV Parsed CV data from OpenAI
  * @returns Array of tags
  */
@@ -353,81 +353,222 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
     const tags: string[] = [];
 
     try {
-        // Age
+        // Age tags
         if (parsedCV.Age) {
-            tags.push(`age:${parsedCV.Age.toLowerCase().replace(/\s+/g, "-")}`);
+            let ageTag = '';
+            const age = Number(parsedCV.Age);
+
+            if (!isNaN(age)) {
+                if (age < 18) ageTag = 'age:under-18';
+                else if (age >= 18 && age <= 22) ageTag = 'age:18-22';
+                else if (age >= 23 && age <= 28) ageTag = 'age:23-28';
+                else if (age >= 29 && age <= 35) ageTag = 'age:29-35';
+                else if (age >= 36 && age <= 45) ageTag = 'age:36-45';
+                else if (age > 45) ageTag = 'age:46+';
+            }
+
+            if (ageTag) tags.push(ageTag);
         }
 
-        // Languages
-        if (parsedCV.Languages) {
-            Object.entries(parsedCV.Languages).forEach(([language, proficiency]) => {
-                tags.push(`language:${language.toLowerCase()}-${proficiency}`);
+        // Language tags
+        if (parsedCV.Languages && typeof parsedCV.Languages === 'object') {
+            Object.entries(parsedCV.Languages).forEach(([language, level]) => {
+                if (language && level && typeof language === 'string' && typeof level === 'string') {
+                    // Normalize language name and level
+                    const normalizedLanguage = language.toLowerCase().trim();
+                    let normalizedLevel = '';
+
+                    // Map various level descriptions to standard terms
+                    const levelLower = level.toLowerCase().trim();
+                    if (levelLower.includes('native') || levelLower.includes('mother')) {
+                        normalizedLevel = 'native';
+                    } else if (levelLower.includes('fluent') || levelLower.includes('proficient')) {
+                        normalizedLevel = 'fluent';
+                    } else if (levelLower.includes('advanced') || levelLower.includes('c1') || levelLower.includes('c2')) {
+                        normalizedLevel = 'advanced';
+                    } else if (levelLower.includes('intermediate') || levelLower.includes('b1') || levelLower.includes('b2')) {
+                        normalizedLevel = 'intermediate';
+                    } else if (levelLower.includes('basic') || levelLower.includes('beginner') || levelLower.includes('a1') || levelLower.includes('a2')) {
+                        normalizedLevel = 'basic';
+                    } else {
+                        normalizedLevel = 'basic'; // Default if unclear
+                    }
+
+                    tags.push(`language:${normalizedLanguage}-${normalizedLevel}`);
+                }
             });
         }
 
-        // Education
+        // Education tags
         if (parsedCV.Education) {
             if (parsedCV.Education["Education Level"]) {
-                tags.push(`education:${parsedCV.Education["Education Level"].toLowerCase().replace(/\s+/g, "-").replace(/'/g, "")}`);
+                const eduLevel = parsedCV.Education["Education Level"].toLowerCase();
+
+                if (eduLevel.includes('high school')) {
+                    tags.push('education:high-school');
+                } else if (eduLevel.includes('associate')) {
+                    tags.push('education:associate-degree');
+                } else if (eduLevel.includes('bachelor')) {
+                    tags.push('education:bachelors-degree');
+                } else if (eduLevel.includes('master')) {
+                    tags.push('education:masters-degree');
+                } else if (eduLevel.includes('phd') || eduLevel.includes('doctorate')) {
+                    tags.push('education:phd');
+                } else if (eduLevel.includes('vocational') || eduLevel.includes('technical')) {
+                    tags.push('education:vocational-certificate');
+                } else if (eduLevel.includes('diploma')) {
+                    tags.push('education:professional-diploma');
+                } else if (eduLevel.includes('certification')) {
+                    tags.push('education:industry-certification');
+                }
             }
 
-            if (parsedCV.Education["Field Relevance"]) {
-                const fieldRelevances = Array.isArray(parsedCV.Education["Field Relevance"])
-                    ? parsedCV.Education["Field Relevance"]
-                    : [parsedCV.Education["Field Relevance"]];
+            // Field of study
+            const fieldRelevance = parsedCV.Education["Field Relevance"];
+            if (fieldRelevance) {
+                const fields = Array.isArray(fieldRelevance) ? fieldRelevance : [fieldRelevance];
 
-                fieldRelevances.forEach((field: string) => {
+                fields.forEach(field => {
                     if (field && typeof field === 'string') {
-                        tags.push(`field:${field.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                        const fieldLower = field.toLowerCase();
+
+                        // Map to predefined field categories
+                        if (fieldLower.includes('hospitality') && fieldLower.includes('management')) {
+                            tags.push('field:hospitality-management');
+                        } else if (fieldLower.includes('tourism')) {
+                            tags.push('field:tourism');
+                        } else if (fieldLower.includes('culinary') || fieldLower.includes('chef')) {
+                            tags.push('field:culinary-arts');
+                        } else if (fieldLower.includes('business') && fieldLower.includes('admin')) {
+                            tags.push('field:business-administration');
+                        } else if (fieldLower.includes('finance') || fieldLower.includes('accounting')) {
+                            tags.push('field:finance-accounting');
+                        } else if (fieldLower.includes('engineering')) {
+                            tags.push('field:engineering');
+                        } else if (fieldLower.includes('it') || fieldLower.includes('computer') || fieldLower.includes('software')) {
+                            tags.push('field:it-computer-science');
+                        } else if (fieldLower.includes('marketing') || fieldLower.includes('communications')) {
+                            tags.push('field:marketing-communications');
+                        } else if (fieldLower.includes('human') && fieldLower.includes('resource')) {
+                            tags.push('field:human-resources');
+                        }
+                        // Add more field mappings as needed
                     }
                 });
             }
         }
 
-        // Experience
+        // Experience tags
         if (parsedCV.Experience) {
+            // Experience duration
             if (parsedCV.Experience.Duration) {
-                tags.push(`experience:${parsedCV.Experience.Duration.toLowerCase().replace(/\s+/g, "-")}`);
+                const duration = parsedCV.Experience.Duration.toLowerCase();
+
+                if (duration.includes('no experience') || duration.includes('none')) {
+                    tags.push('experience:no-experience');
+                } else if (duration.includes('less than 1') || duration.includes('<1')) {
+                    tags.push('experience:less-than-1-year');
+                } else if (duration.includes('1-3') || (duration.includes('1') && duration.includes('3'))) {
+                    tags.push('experience:1-3-years');
+                } else if (duration.includes('3-5') || (duration.includes('3') && duration.includes('5'))) {
+                    tags.push('experience:3-5-years');
+                } else if (duration.includes('5-10') || (duration.includes('5') && duration.includes('10'))) {
+                    tags.push('experience:5-10-years');
+                } else if (duration.includes('10+') || duration.includes('over 10')) {
+                    tags.push('experience:10+-years');
+                }
             }
 
-            if (parsedCV.Experience["Establishment Type"]) {
-                const establishmentTypes = Array.isArray(parsedCV.Experience["Establishment Type"])
-                    ? parsedCV.Experience["Establishment Type"]
-                    : [parsedCV.Experience["Establishment Type"]];
+            // Establishment type
+            const establishmentType = parsedCV.Experience["Establishment Type"];
+            if (establishmentType) {
+                const establishments = Array.isArray(establishmentType) ? establishmentType : [establishmentType];
 
-                establishmentTypes.forEach((type: string) => {
-                    if (type && typeof type === 'string') {
-                        tags.push(`establishment:${type.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                establishments.forEach(est => {
+                    if (est && typeof est === 'string') {
+                        const estLower = est.toLowerCase();
+
+                        if (estLower.includes('luxury') && (estLower.includes('resort') || estLower.includes('hotel'))) {
+                            tags.push('establishment:luxury-resort');
+                        } else if (estLower.includes('business') && estLower.includes('hotel')) {
+                            tags.push('establishment:business-hotel');
+                        } else if (estLower.includes('restaurant') || estLower.includes('bar')) {
+                            tags.push('establishment:restaurant-bar');
+                        } else if (estLower.includes('tour') && estLower.includes('operator')) {
+                            tags.push('establishment:tour-operator');
+                        } else if (estLower.includes('cruise')) {
+                            tags.push('establishment:cruise-line');
+                        } else if (estLower.includes('chain') && estLower.includes('hotel')) {
+                            tags.push('establishment:chain-hotel');
+                        } else if (estLower.includes('boutique')) {
+                            tags.push('establishment:boutique-property');
+                        } else {
+                            tags.push('establishment:other');
+                        }
                     }
                 });
             }
 
+            // Position level
             if (parsedCV.Experience["Position Level"]) {
-                tags.push(`position:${parsedCV.Experience["Position Level"].toLowerCase().replace(/\s+/g, "-")}`);
+                const position = parsedCV.Experience["Position Level"].toLowerCase();
+
+                if (position.includes('entry')) {
+                    tags.push('position:entry-level');
+                } else if (position.includes('specialist')) {
+                    tags.push('position:specialist');
+                } else if (position.includes('supervisor')) {
+                    tags.push('position:supervisor');
+                } else if (position.includes('manager')) {
+                    tags.push('position:manager');
+                } else if (position.includes('head') && position.includes('department')) {
+                    tags.push('position:department-head');
+                } else if (position.includes('director')) {
+                    tags.push('position:director');
+                } else if (position.includes('executive') || position.includes('c-level')) {
+                    tags.push('position:executive');
+                }
             }
         }
 
         // Technical Skills
         if (parsedCV["Technical Skills"]) {
-            const technicalSkills = parsedCV["Technical Skills"];
+            const techSkills = parsedCV["Technical Skills"];
 
-            Object.entries(technicalSkills).forEach(([category, skills]) => {
-                const categoryKey = category
-                    .toLowerCase()
-                    .replace(/\s+\/\s+/g, "-")
-                    .replace(/\s+&\s+/g, "-")
-                    .replace(/\s+/g, "-");
+            // Process each skill category
+            Object.entries(techSkills).forEach(([category, skills]) => {
+                if (!skills) return;
 
-                if (Array.isArray(skills)) {
-                    skills.forEach((skill: string) => {
-                        if (skill && typeof skill === 'string') {
-                            tags.push(`skill:${categoryKey}:${skill.toLowerCase().replace(/\s+/g, "-").replace(/[\/&()]/g, "-")}`);
-                        }
-                    });
-                } else if (skills && typeof skills === 'string') {
-                    // Handle case where skills is a single string
-                    tags.push(`skill:${categoryKey}:${skills.toLowerCase().replace(/\s+/g, "-").replace(/[\/&()]/g, "-")}`);
+                const skillsArray = Array.isArray(skills) ? skills : [skills];
+                const categoryLower = category.toLowerCase();
+
+                // Map category to predefined categories
+                let mappedCategory = '';
+                if (categoryLower.includes('front') || categoryLower.includes('reception') || categoryLower.includes('reservation')) {
+                    mappedCategory = 'front-office';
+                } else if (categoryLower.includes('housekeeping') || categoryLower.includes('cleaning')) {
+                    mappedCategory = 'housekeeping';
+                } else if (categoryLower.includes('kitchen') || categoryLower.includes('f&b') || categoryLower.includes('food')) {
+                    mappedCategory = 'fb-kitchen';
+                } else if (categoryLower.includes('it') || categoryLower.includes('tech')) {
+                    mappedCategory = 'it-technical';
+                } else if (categoryLower.includes('accounting') || categoryLower.includes('finance')) {
+                    mappedCategory = 'accounting-finance';
+                } else {
+                    mappedCategory = 'general';
                 }
+
+                // Add each skill with proper categorization
+                skillsArray.forEach(skill => {
+                    if (skill && typeof skill === 'string') {
+                        // Normalize skill name to kebab-case
+                        const normalizedSkill = skill.toLowerCase()
+                            .replace(/[^\w\s-]/g, '')
+                            .replace(/\s+/g, '-');
+
+                        tags.push(`technical-skill:${mappedCategory}:${normalizedSkill}`);
+                    }
+                });
             });
         }
 
@@ -437,9 +578,14 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
                 ? parsedCV["Soft Skills"]
                 : [parsedCV["Soft Skills"]];
 
-            softSkills.forEach((skill: string) => {
+            softSkills.forEach((skill: any) => {
                 if (skill && typeof skill === 'string') {
-                    tags.push(`soft-skill:${skill.toLowerCase().replace(/\s+/g, "-")}`);
+                    // Normalize soft skill to kebab-case
+                    const normalizedSkill = skill.toLowerCase()
+                        .replace(/[^\w\s-]/g, '')
+                        .replace(/\s+/g, '-');
+
+                    tags.push(`soft-skill:${normalizedSkill}`);
                 }
             });
         }
@@ -450,17 +596,36 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
                 ? parsedCV.Certifications
                 : [parsedCV.Certifications];
 
-            certifications.forEach((cert: string) => {
+            certifications.forEach((cert: any) => {
                 if (cert && typeof cert === 'string') {
-                    tags.push(`certification:${cert.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                    // Try to identify certification type
+                    const certLower = cert.toLowerCase();
+
+                    if (certLower.includes('food') && certLower.includes('safety')) {
+                        tags.push('certification:food-safety');
+                    } else if ((certLower.includes('first') && certLower.includes('aid')) || certLower.includes('cpr')) {
+                        tags.push('certification:first-aid-cpr');
+                    } else if (certLower.includes('fire') && certLower.includes('safety')) {
+                        tags.push('certification:fire-safety');
+                    } else if (certLower.includes('hospitality') && certLower.includes('management')) {
+                        tags.push('certification:hospitality-management');
+                    } else {
+                        // Normalize certification to kebab-case
+                        const normalizedCert = cert.toLowerCase()
+                            .replace(/[^\w\s-]/g, '')
+                            .replace(/\s+/g, '-')
+                            .substring(0, 30);  // Limit length
+
+                        tags.push(`certification:${normalizedCert}`);
+                    }
                 }
             });
         }
 
-        return tags;
-    } catch (error: any) {
-        console.error('Error converting parsed CV to tags:', error);
-        // Return whatever tags we've created so far
-        return tags;
+    } catch (error) {
+        console.error('Error generating tags from parsed CV:', error);
     }
+
+    // Remove duplicates and return
+    return [...new Set(tags)];
 } 

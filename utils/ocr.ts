@@ -17,12 +17,17 @@ export async function getTesseractWorker() {
     if (!tesseractWorker) {
         try {
             console.log('Initializing Tesseract worker...');
-            // Create a simple worker without caching to avoid path issues
-            tesseractWorker = await createWorker();
 
-            // Load English and Turkish languages
-            console.log('Loading languages: eng+tur');
-            await tesseractWorker.loadLanguage('eng+tur');
+            // Fix for server-side: Use alternative worker initialization
+            if (typeof window === 'undefined') {
+                // Server-side: Create a worker with minimal configuration
+                tesseractWorker = await createWorker('eng+tur');
+            } else {
+                // Client-side: Use standard worker setup
+                tesseractWorker = await createWorker('eng+tur');
+            }
+
+            // Initialize with the languages
             await tesseractWorker.initialize('eng+tur');
             console.log('Tesseract worker initialized successfully');
 
@@ -236,10 +241,20 @@ function cleanTextForOpenAI(text: string): string {
  */
 export async function extractTextFromImage(filePath: string): Promise<string> {
     try {
-        // Use both English and Turkish languages for better results
-        const worker = await createWorker(['eng', 'tur']);
+        console.log('Extracting text from image using OCR...');
+
+        // Don't reuse the global worker to avoid potential issues
+        // Create a new worker for this specific task
+        const worker = await createWorker('eng+tur');
+
+        // Recognize text
+        console.log('Running OCR recognition...');
         const { data: { text } } = await worker.recognize(filePath);
+
+        // Terminate after use
+        console.log('OCR recognition complete, terminating worker');
         await worker.terminate();
+
         return cleanTextForOpenAI(text);
     } catch (error: any) {
         console.error('Error extracting text from image:', error);
@@ -408,9 +423,21 @@ export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
         // If PDF extraction fails or returns empty text, try OCR
         try {
             console.log('Using OCR to extract text');
-            const worker = await getTesseractWorker();
-            const result = await worker.recognize(buffer);
-            text = result.data.text;
+
+            // Create a dedicated worker for this specific task
+            // This avoids the worker path issue
+            console.log('Initializing dedicated OCR worker for this extraction...');
+            const worker = await createWorker('eng+tur');
+
+            // Process the buffer
+            console.log('Running OCR recognition on buffer...');
+            const { data } = await worker.recognize(buffer);
+            text = data.text;
+
+            // Clean up immediately
+            console.log('OCR recognition complete, terminating worker');
+            await worker.terminate();
+
             console.log('Successfully extracted text using OCR');
 
             if (!text.trim()) {
@@ -427,5 +454,32 @@ export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
     } catch (error) {
         console.error('Error extracting text from buffer:', error);
         throw new Error(`Failed to extract text: ${error}`);
+    }
+}
+
+/**
+ * Extract text from a buffer containing an image file
+ * @param buffer Buffer containing an image file
+ * @returns Extracted text
+ */
+export async function extractTextFromImageBuffer(buffer: Buffer): Promise<string> {
+    try {
+        console.log('Extracting text from image buffer using OCR...');
+
+        // Create a dedicated worker for this task
+        const worker = await createWorker('eng+tur');
+
+        // Recognize text directly from buffer
+        console.log('Running OCR recognition on buffer...');
+        const { data: { text } } = await worker.recognize(buffer);
+
+        // Clean up
+        console.log('OCR buffer recognition complete, terminating worker');
+        await worker.terminate();
+
+        return cleanTextForOpenAI(text);
+    } catch (error: any) {
+        console.error('Error extracting text from image buffer:', error);
+        return `Image buffer text extraction failed: ${error.message}`;
     }
 }
