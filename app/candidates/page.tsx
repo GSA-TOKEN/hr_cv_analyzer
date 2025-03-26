@@ -56,7 +56,6 @@ export default function CandidateSearchPage() {
                 const searchLower = searchTerm.toLowerCase();
                 filteredCVs = filteredCVs.filter((cv: any) =>
                     cv.filename.toLowerCase().includes(searchLower) ||
-                    (cv.email && cv.email.toLowerCase().includes(searchLower)) ||
                     cv.tags.some((tag: string) => tag.toLowerCase().includes(searchLower))
                 );
             }
@@ -250,7 +249,7 @@ export default function CandidateSearchPage() {
                             <p className="mt-2 text-gray-500">
                                 {searchTerm || selectedTags.length > 0
                                     ? 'No candidates match your search criteria.'
-                                    : 'No candidates found. Upload CVs to get started.'}
+                                    : 'No candidates available. Please upload real CVs to get started.'}
                             </p>
                             {(searchTerm || selectedTags.length > 0) && (
                                 <Button
@@ -265,6 +264,13 @@ export default function CandidateSearchPage() {
                                     Clear all filters
                                 </Button>
                             )}
+                            <Button
+                                variant="default"
+                                className="mt-4 ml-2"
+                                onClick={() => router.push('/cvs')}
+                            >
+                                Upload CVs
+                            </Button>
                         </div>
                     )}
                 </>

@@ -26,63 +26,123 @@ export async function extractTextFromDocument(file: File): Promise<string> {
     // Similar to PDF parsing
   }
 
-  // Simulate successful text extraction
+  // In a real implementation, this would extract actual text from the document
+  // For now, return a generic CV template with randomized content
+  return generateGenericCV()
+}
+
+function generateGenericCV(): string {
+  // Generate a random CV with common sections
+  const names = [
+    "Alex Johnson", "Jamie Smith", "Taylor Davis", "Morgan Lee",
+    "Jordan Brown", "Casey Williams", "Avery Miller", "Riley Garcia"
+  ]
+
+  const universities = [
+    "University of Hospitality Management",
+    "International Culinary Institute",
+    "Tourism and Hotel Management School",
+    "Business Administration College"
+  ]
+
+  const companies = [
+    "Grand Resort & Spa",
+    "Sunset Beach Hotel",
+    "Mountain View Lodge",
+    "Metropolitan Business Hotel",
+    "Luxury Cruise Lines"
+  ]
+
+  const departments = [
+    "Front Office", "Housekeeping", "Food & Beverage Service", "Kitchen",
+    "Guest Relations", "Human Resources", "Sales & Marketing"
+  ]
+
+  const positions = [
+    "Manager", "Supervisor", "Team Lead", "Specialist",
+    "Coordinator", "Assistant", "Director"
+  ]
+
+  const skills = [
+    "Guest service excellence", "Team leadership", "Conflict resolution",
+    "Inventory management", "Revenue optimization", "Staff training",
+    "Problem-solving", "Communication", "Reservation systems",
+    "POS systems", "Opera PMS", "Budgeting", "Quality control"
+  ]
+
+  // Randomly select values
+  const name = names[Math.floor(Math.random() * names.length)]
+  const email = name.toLowerCase().replace(' ', '.') + '@email.com'
+  const phone = `(555) ${Math.floor(Math.random() * 900) + 100}-${Math.floor(Math.random() * 9000) + 1000}`
+  const university = universities[Math.floor(Math.random() * universities.length)]
+
+  // Generate work experiences
+  const company1 = companies[Math.floor(Math.random() * companies.length)]
+  const department1 = departments[Math.floor(Math.random() * departments.length)]
+  const position1 = positions[Math.floor(Math.random() * positions.length)]
+
+  const company2 = companies[Math.floor(Math.random() * companies.length)]
+  const department2 = departments[Math.floor(Math.random() * departments.length)]
+  const position2 = positions[Math.floor(Math.random() * positions.length)]
+
+  // Generate skills
+  const skillList: string[] = []
+  const skillSet: Set<string> = new Set()
+  while (skillSet.size < 5) {
+    const skill = skills[Math.floor(Math.random() * skills.length)]
+    skillSet.add(skill)
+  }
+  skillSet.forEach(skill => skillList.push(`• ${skill}`))
+
+  // Return formatted CV
   return `
-    MARIA RODRIGUEZ
-    maria.rodriguez@email.com | (555) 123-4567
+    ${name}
+    ${email} | ${phone}
     
     PROFESSIONAL SUMMARY
-    Dedicated hospitality professional with 4 years of experience in luxury resort front office operations. 
-    Skilled in guest relations, reservation management, and problem resolution. Multilingual with excellent 
-    communication skills and a passion for delivering exceptional guest experiences.
+    Dedicated hospitality professional with several years of experience in the ${department1} department.
+    Experienced in ${skillList[0].substring(2).toLowerCase()} and ${skillList[1].substring(2).toLowerCase()}.
+    Seeking a position that utilizes my skills in ${department1} operations and guest satisfaction.
     
     WORK EXPERIENCE
     
-    Front Desk Supervisor
-    Oceanview Luxury Resort & Spa | Miami, FL
-    June 2021 - Present
+    ${department1} ${position1}
+    ${company1} | 2021 - Present
     
-    • Supervise a team of 8 front desk agents, ensuring excellent service delivery
-    • Manage daily operations including check-ins, check-outs, and guest inquiries
-    • Resolve complex guest issues and complaints with a 98% satisfaction rate
-    • Train new staff on Opera PMS and resort-specific procedures
-    • Coordinate with other departments to ensure seamless guest experiences
-    • Implemented a new upselling program that increased room upgrades by 25%
+    • Managed daily operations of the ${department1} department
+    • Trained and supervised staff members to ensure high service standards
+    • Implemented procedures that improved efficiency by 20%
+    • Handled guest complaints and resolved issues effectively
+    • Collaborated with other departments to enhance guest experience
     
-    Guest Relations Specialist
-    Mountain View Resort | Aspen, CO
-    March 2019 - May 2021
+    ${department2} ${position2}
+    ${company2} | 2018 - 2021
     
-    • Handled VIP guest arrangements and special requests
-    • Managed guest feedback and implemented service improvements
-    • Coordinated with concierge and housekeeping for personalized guest services
-    • Assisted with front desk operations during peak periods
-    • Received "Employee of the Year" award in 2020
+    • Assisted with daily operations and administrative tasks
+    • Provided excellent service to guests and resolved basic issues
+    • Supported team members during high-volume periods
+    • Participated in staff training and development programs
     
     EDUCATION
     
-    Bachelor of Science in Hospitality Management
-    Cornell University School of Hotel Administration
-    Graduated: May 2019
-    
-    CERTIFICATIONS
-    
-    • Certified Hospitality Professional (CHP) - American Hotel & Lodging Educational Institute
-    • Customer Service Excellence - International Customer Service Association
-    • Opera PMS Certification - Oracle Hospitality
+    Bachelor's Degree in Hospitality Management
+    ${university}
+    Graduated: 2018
     
     SKILLS
     
-    • Property Management Systems: Opera PMS, ALICE, Mews
-    • Languages: English (Native), Spanish (Native), French (Intermediate), German (Basic)
-    • Guest Service: Problem resolution, upselling, VIP handling
-    • Administrative: Reporting, documentation, inventory management
+    ${skillList.join('\n    ')}
+    
+    LANGUAGES
+    
+    • English (Fluent)
+    • Spanish (Intermediate)
     
     ADDITIONAL INFORMATION
     
-    • Availability: Immediate
-    • Accommodation: Staff housing required
-    • Salary Expectation: $3,500 - $4,000/month
+    • Availability: 2 weeks notice
+    • Accommodation: Flexible
+    • Salary Expectation: $3,000 - $4,500/month
     • Notice Period: 2 weeks
   `
 }

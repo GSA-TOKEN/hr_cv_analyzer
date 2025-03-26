@@ -58,6 +58,14 @@ export interface ScoreComponents {
   practicalFactors: number // 0-100
 }
 
+export interface Demographics {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  birthdate: string
+}
+
 export interface CVAnalysisResult {
   candidateName: string
   age: number
@@ -72,6 +80,7 @@ export interface CVAnalysisResult {
   personalAttributes: PersonalAttributes
   recommendedPositions: PositionMatch[]
   tags: string[]
+  demographics?: Demographics
 }
 
 export interface Candidate extends CVAnalysisResult {

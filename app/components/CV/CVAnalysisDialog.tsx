@@ -54,23 +54,11 @@ const CVAnalysisDialog: React.FC<CVAnalysisDialogProps> = ({
 
                     <TabsContent value="summary" className="space-y-4">
                         <div>
-                            <h3 className="text-lg font-medium">Personal Information</h3>
-                            <div className="grid grid-cols-2 gap-2 mt-2">
+                            <h3 className="text-lg font-medium">CV Overview</h3>
+                            <div className="grid grid-cols-1 gap-2 mt-2">
                                 <div>
-                                    <p className="text-sm text-gray-500">Name</p>
-                                    <p>{parsedData.name || 'Not available'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Email</p>
-                                    <p>{cv.email || parsedData.email || 'Not available'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Phone</p>
-                                    <p>{cv.phone || parsedData.phone || 'Not available'}</p>
-                                </div>
-                                <div>
-                                    <p className="text-sm text-gray-500">Location</p>
-                                    <p>{parsedData.location || 'Not available'}</p>
+                                    <p className="text-sm text-gray-500">Filename</p>
+                                    <p>{cv.filename}</p>
                                 </div>
                             </div>
                         </div>

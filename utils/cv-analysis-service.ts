@@ -165,6 +165,71 @@ export class CVAnalysisService {
                 // If it's a range or non-numeric format, we'll keep it in parsedData but not set the age field
             }
 
+            // Extract demographic information
+            let firstName = '', lastName = '', email = '', phone = '', birthdate = '';
+
+            // Attempt to extract first and last name from candidateName in parsedCV
+            if (parsedCV.candidateName || parsedCV.name) {
+                const fullName = (parsedCV.candidateName || parsedCV.name).trim();
+                const nameParts = fullName.split(/\s+/);
+                if (nameParts.length >= 2) {
+                    firstName = nameParts[0];
+                    lastName = nameParts[nameParts.length - 1];
+                } else if (nameParts.length === 1) {
+                    firstName = nameParts[0];
+                }
+            }
+
+            // Extract email
+            if (typeof parsedCV.email === 'string' && parsedCV.email.includes('@')) {
+                email = parsedCV.email;
+            }
+            // Alternative: look for email in the parsedCV object
+            else if (!email) {
+                for (const key in parsedCV) {
+                    const value = parsedCV[key];
+                    if (typeof value === 'string' && value.includes('@') && value.includes('.')) {
+                        email = value;
+                        break;
+                    }
+                }
+            }
+
+            // Extract phone
+            if (typeof parsedCV.phone === 'string' && parsedCV.phone.match(/\d/)) {
+                phone = parsedCV.phone;
+            }
+            // Alternative: Look for common phone formats in parsedCV
+            else if (!phone) {
+                for (const key in parsedCV) {
+                    const value = parsedCV[key];
+                    if (typeof value === 'string' &&
+                        (value.match(/\(\d{3}\)\s*\d{3}-\d{4}/) ||
+                            value.match(/\d{3}[-.\s]\d{3}[-.\s]\d{4}/))) {
+                        phone = value;
+                        break;
+                    }
+                }
+            }
+
+            // Extract birthdate
+            if (typeof parsedCV.birthdate === 'string' || typeof parsedCV.dob === 'string') {
+                birthdate = parsedCV.birthdate || parsedCV.dob;
+            }
+            // Look for date of birth in the parsedCV
+            else if (!birthdate) {
+                for (const key in parsedCV) {
+                    const keyLower = key.toLowerCase();
+                    if (keyLower.includes('birth') || keyLower === 'dob') {
+                        const value = parsedCV[key];
+                        if (typeof value === 'string') {
+                            birthdate = value;
+                            break;
+                        }
+                    }
+                }
+            }
+
             // 9. Update the CV document with analysis results
             await cvStore.updateCV(cvId, {
                 analyzed: true,
@@ -172,7 +237,17 @@ export class CVAnalysisService {
                 tags,
                 originalTextFileId,
                 enhancedTextFileId,
-                parsedData: parsedCV,
+                // Include original parsedCV data and add demographic information
+                parsedData: {
+                    ...parsedCV,
+                    demographics: {
+                        firstName,
+                        lastName,
+                        email: email || parsedCV.email,
+                        phone: phone || parsedCV.phone,
+                        birthdate
+                    }
+                },
                 analysis: {
                     languages: parsedCV.Languages ? Object.entries(parsedCV.Languages).map(([name, level]) => ({ name, level })) : [],
                     education: parsedCV.Education ? {
@@ -202,12 +277,14 @@ export class CVAnalysisService {
                         ? parsedCV.Certifications.filter((cert: any) => cert && typeof cert === 'string')
                         : (parsedCV.Certifications && typeof parsedCV.Certifications === 'string' ? [parsedCV.Certifications] : [])
                 },
-                // Extract additional fields if available
-                ...(parsedCV.email && { email: parsedCV.email }),
-                ...(parsedCV.phone && { phone: parsedCV.phone }),
+                // Save extracted demographic information
+                email: email || parsedCV.email,
+                phone: phone || parsedCV.phone,
                 ...(ageValue !== undefined && { age: ageValue }), // Only set age if we have a numeric value
                 ...(parsedCV.department && { department: parsedCV.department }),
-                ...(parsedCV.expectedSalary && { expectedSalary: parsedCV.expectedSalary })
+                ...(parsedCV.expectedSalary && { expectedSalary: parsedCV.expectedSalary }),
+                // Add birthdate if available
+                ...(birthdate && { birthdate })
             });
 
             console.log(`Successfully completed analysis for CV ${cvId}`);
