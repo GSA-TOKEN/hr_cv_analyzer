@@ -10,6 +10,40 @@ import { getDocument } from 'pdfjs-dist';
 // Setup PDF.js worker
 setupPdfWorker();
 
+// Initialize Tesseract worker
+let tesseractWorker: any = null;
+
+export async function getTesseractWorker() {
+    if (!tesseractWorker) {
+        try {
+            console.log('Initializing Tesseract worker...');
+            // Create a simple worker without caching to avoid path issues
+            tesseractWorker = await createWorker();
+
+            // Load English and Turkish languages
+            console.log('Loading languages: eng+tur');
+            await tesseractWorker.loadLanguage('eng+tur');
+            await tesseractWorker.initialize('eng+tur');
+            console.log('Tesseract worker initialized successfully');
+
+            // Set up clean-up function
+            if (typeof process !== 'undefined') {
+                process.on('exit', async () => {
+                    if (tesseractWorker) {
+                        console.log('Terminating Tesseract worker');
+                        await tesseractWorker.terminate();
+                        tesseractWorker = null;
+                    }
+                });
+            }
+        } catch (error: any) {
+            console.error('Error initializing Tesseract worker:', error);
+            throw new Error(`Failed to initialize OCR: ${error.message}`);
+        }
+    }
+    return tesseractWorker;
+}
+
 /**
  * Extract text from a PDF file using PDF.js on client side, or a simpler method on server side
  * Optimized for OpenAI processing with multilingual support
@@ -242,40 +276,34 @@ export async function extractTextFromDOCX(filePath: string): Promise<string> {
  * @param filePath Path to the file
  * @returns Extracted text from the file
  */
-export async function extractTextFromFile(filePath: string): Promise<string> {
+export async function extractTextFromFile(fileBuffer: Buffer): Promise<string> {
     try {
-        if (!fs.existsSync(filePath)) {
-            return `File does not exist: ${filePath}`;
+        // First try to extract text as PDF
+        try {
+            const pdfDocument = await pdfjsLib.getDocument(fileBuffer).promise;
+            let text = '';
+
+            for (let i = 1; i <= pdfDocument.numPages; i++) {
+                const page = await pdfDocument.getPage(i);
+                const content = await page.getTextContent();
+                text += content.items.map((item: any) => item.str).join(' ') + '\n';
+            }
+
+            if (text.trim()) {
+                return text;
+            }
+        } catch (error) {
+            console.log('Not a valid PDF or no text content found, trying OCR...');
         }
 
-        const extension = path.extname(filePath).toLowerCase();
-        console.log(`Extracting text from file with extension: ${extension}`);
+        // If PDF extraction fails or returns no text, try OCR
+        const worker = await getTesseractWorker();
+        const { data: { text } } = await worker.recognize(fileBuffer);
 
-        switch (extension) {
-            case '.pdf':
-                return extractTextFromPDF(filePath);
-            case '.jpg':
-            case '.jpeg':
-            case '.png':
-            case '.tiff':
-            case '.bmp':
-                return extractTextFromImage(filePath);
-            case '.docx':
-                return extractTextFromDOCX(filePath);
-            case '.txt':
-                try {
-                    const text = await fsPromises.readFile(filePath, 'utf-8');
-                    return cleanTextForOpenAI(text);
-                } catch (txtError: any) {
-                    console.error('Error reading text file:', txtError);
-                    return `Failed to read text file: ${txtError.message}`;
-                }
-            default:
-                return `Unsupported file type: ${extension}. Please upload a PDF, DOCX, image, or TXT file.`;
-        }
-    } catch (error: any) {
-        console.error('Error in extractTextFromFile:', error);
-        return `File processing error: ${error.message}. Please try a different file.`;
+        return text;
+    } catch (error) {
+        console.error('Error extracting text:', error);
+        throw error;
     }
 }
 
@@ -311,7 +339,7 @@ export async function extractTextFromUrl(url: string): Promise<string> {
         console.log(`File downloaded successfully, size: ${(arrayBuffer.byteLength / 1024).toFixed(2)} KB`);
 
         // Extract text from the downloaded file
-        const text = await extractTextFromFile(tempFilePath);
+        const text = await extractTextFromFile(Buffer.from(arrayBuffer));
 
         // Clean up the temporary file
         try {
@@ -329,31 +357,75 @@ export async function extractTextFromUrl(url: string): Promise<string> {
 }
 
 export async function extractTextFromBuffer(buffer: Buffer): Promise<string> {
-    const worker = await createWorker();
-    let text = '';
-
     try {
-        // First, try to extract text as PDF
-        try {
-            const data = new Uint8Array(buffer);
-            const pdf = await getDocument({ data }).promise;
-            const numPages = pdf.numPages;
+        let text = '';
 
-            for (let i = 1; i <= numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                text += content.items.map((item: any) => item.str).join(' ') + '\n';
+        // First, try to extract text as PDF using PDF.js
+        try {
+            console.log('Attempting to extract text from PDF...');
+
+            // Use a direct approach without relying on the worker for server-side
+            if (typeof window === 'undefined') {
+                // Server-side PDF extraction
+                try {
+                    console.log("Using pdf-parse for server-side extraction");
+                    // Try pdf-parse which is more reliable for server
+                    const pdfParse = require('pdf-parse');
+                    const data = await pdfParse(buffer);
+                    text = data.text || '';
+
+                    if (text.trim()) {
+                        console.log(`Successfully extracted ${text.length} characters using pdf-parse`);
+                        return cleanTextForOpenAI(text);
+                    }
+                } catch (pdfParseError) {
+                    console.error("pdf-parse error:", pdfParseError);
+                    // Continue to OCR fallback
+                }
+            } else {
+                // Client-side PDF extraction with PDF.js
+                const data = new Uint8Array(buffer);
+                const pdf = await getDocument({ data }).promise;
+                const numPages = pdf.numPages;
+                console.log(`PDF has ${numPages} pages`);
+
+                for (let i = 1; i <= numPages; i++) {
+                    console.log(`Processing page ${i}/${numPages}`);
+                    const page = await pdf.getPage(i);
+                    const content = await page.getTextContent();
+                    text += content.items.map((item: any) => item.str).join(' ') + '\n';
+                }
+
+                if (text.trim()) {
+                    console.log('Successfully extracted text from PDF');
+                    return cleanTextForOpenAI(text);
+                }
             }
         } catch (error) {
-            // If PDF extraction fails, try OCR
-            await worker.loadLanguage('eng');
-            await worker.initialize('eng');
-            const result = await worker.recognize(buffer);
-            text = result.data.text;
+            console.log('PDF extraction failed, falling back to OCR', error);
         }
 
-        return cleanTextForOpenAI(text);
-    } finally {
-        await worker.terminate();
+        // If PDF extraction fails or returns empty text, try OCR
+        try {
+            console.log('Using OCR to extract text');
+            const worker = await getTesseractWorker();
+            const result = await worker.recognize(buffer);
+            text = result.data.text;
+            console.log('Successfully extracted text using OCR');
+
+            if (!text.trim()) {
+                throw new Error('OCR extraction returned empty text');
+            }
+        } catch (ocrError) {
+            console.error('OCR extraction failed:', ocrError);
+            throw new Error('Both PDF extraction and OCR failed. Unable to extract text from this file.');
+        }
+
+        const cleanedText = cleanTextForOpenAI(text);
+        console.log(`Extracted ${cleanedText.length} characters of text`);
+        return cleanedText;
+    } catch (error) {
+        console.error('Error extracting text from buffer:', error);
+        throw new Error(`Failed to extract text: ${error}`);
     }
 }

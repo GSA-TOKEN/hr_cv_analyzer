@@ -2,7 +2,16 @@ import OpenAI from 'openai';
 
 // Initialize the OpenAI client
 const apiKey = process.env.OPENAI_API_KEY;
-const openai = new OpenAI({ apiKey });
+if (!apiKey) {
+    console.error('OPENAI_API_KEY is not set in environment variables');
+}
+
+const openai = new OpenAI({
+    apiKey,
+    // Set reasonable timeout and max retries
+    timeout: 60000, // 60 seconds
+    maxRetries: 3
+});
 
 // System message for CV analysis
 const system_message_cv = `
@@ -363,8 +372,14 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
             }
 
             if (parsedCV.Education["Field Relevance"]) {
-                parsedCV.Education["Field Relevance"].forEach((field: string) => {
-                    tags.push(`field:${field.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                const fieldRelevances = Array.isArray(parsedCV.Education["Field Relevance"])
+                    ? parsedCV.Education["Field Relevance"]
+                    : [parsedCV.Education["Field Relevance"]];
+
+                fieldRelevances.forEach((field: string) => {
+                    if (field && typeof field === 'string') {
+                        tags.push(`field:${field.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                    }
                 });
             }
         }
@@ -376,8 +391,14 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
             }
 
             if (parsedCV.Experience["Establishment Type"]) {
-                parsedCV.Experience["Establishment Type"].forEach((type: string) => {
-                    tags.push(`establishment:${type.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                const establishmentTypes = Array.isArray(parsedCV.Experience["Establishment Type"])
+                    ? parsedCV.Experience["Establishment Type"]
+                    : [parsedCV.Experience["Establishment Type"]];
+
+                establishmentTypes.forEach((type: string) => {
+                    if (type && typeof type === 'string') {
+                        tags.push(`establishment:${type.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                    }
                 });
             }
 
@@ -399,29 +420,47 @@ export function convertParsedCVToTags(parsedCV: any): string[] {
 
                 if (Array.isArray(skills)) {
                     skills.forEach((skill: string) => {
-                        tags.push(`skill:${categoryKey}:${skill.toLowerCase().replace(/\s+/g, "-").replace(/[\/&()]/g, "-")}`);
+                        if (skill && typeof skill === 'string') {
+                            tags.push(`skill:${categoryKey}:${skill.toLowerCase().replace(/\s+/g, "-").replace(/[\/&()]/g, "-")}`);
+                        }
                     });
+                } else if (skills && typeof skills === 'string') {
+                    // Handle case where skills is a single string
+                    tags.push(`skill:${categoryKey}:${skills.toLowerCase().replace(/\s+/g, "-").replace(/[\/&()]/g, "-")}`);
                 }
             });
         }
 
         // Soft Skills
         if (parsedCV["Soft Skills"]) {
-            parsedCV["Soft Skills"].forEach((skill: string) => {
-                tags.push(`soft-skill:${skill.toLowerCase().replace(/\s+/g, "-")}`);
+            const softSkills = Array.isArray(parsedCV["Soft Skills"])
+                ? parsedCV["Soft Skills"]
+                : [parsedCV["Soft Skills"]];
+
+            softSkills.forEach((skill: string) => {
+                if (skill && typeof skill === 'string') {
+                    tags.push(`soft-skill:${skill.toLowerCase().replace(/\s+/g, "-")}`);
+                }
             });
         }
 
         // Certifications
         if (parsedCV.Certifications) {
-            parsedCV.Certifications.forEach((cert: string) => {
-                tags.push(`certification:${cert.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+            const certifications = Array.isArray(parsedCV.Certifications)
+                ? parsedCV.Certifications
+                : [parsedCV.Certifications];
+
+            certifications.forEach((cert: string) => {
+                if (cert && typeof cert === 'string') {
+                    tags.push(`certification:${cert.toLowerCase().replace(/\s+/g, "-").replace(/[\/&]/g, "-")}`);
+                }
             });
         }
 
         return tags;
     } catch (error: any) {
         console.error('Error converting parsed CV to tags:', error);
+        // Return whatever tags we've created so far
         return tags;
     }
 } 

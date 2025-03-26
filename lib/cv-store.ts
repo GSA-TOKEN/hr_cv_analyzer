@@ -7,6 +7,8 @@ export interface ICV {
     filename: string;
     uploadDate: Date;
     analyzed: boolean;
+    status?: 'pending' | 'processing' | 'completed' | 'error';
+    error?: string;
     fileId: string;
     tags: string[];
     age?: number;
@@ -242,6 +244,31 @@ class CVStore {
             parsedData: cv.parsedData,
             analysis: cv.analysis
         }));
+    }
+
+    async saveTextContent(text: string): Promise<string> {
+        await this.ensureInitialized();
+
+        // Create a buffer from the text content
+        const buffer = Buffer.from(text, 'utf-8');
+
+        // Generate a filename for the text content
+        const filename = `text_${Date.now()}.txt`;
+
+        // Upload the text file to GridFS
+        const fileId = await uploadFile(buffer, filename, 'text/plain');
+
+        return fileId;
+    }
+
+    async getTextContent(fileId: string): Promise<string> {
+        await this.ensureInitialized();
+
+        // Get the file buffer from GridFS
+        const buffer = await getFileFromGridFS(fileId);
+
+        // Convert buffer to string
+        return buffer.toString('utf-8');
     }
 }
 

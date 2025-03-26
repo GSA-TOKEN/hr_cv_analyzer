@@ -4,6 +4,8 @@ export interface ICV extends Document {
     filename: string;
     uploadDate: Date;
     analyzed: boolean;
+    status: 'pending' | 'processing' | 'completed' | 'error';
+    error?: string;
     fileId: string;
     tags: string[];
     age?: number;
@@ -29,6 +31,12 @@ const CVSchema = new Schema<ICV>({
     filename: { type: String, required: true },
     uploadDate: { type: Date, default: Date.now },
     analyzed: { type: Boolean, default: false, index: true },
+    status: {
+        type: String,
+        enum: ['pending', 'processing', 'completed', 'error'],
+        default: 'pending'
+    },
+    error: { type: String },
     fileId: { type: String, required: true, unique: true },
     tags: [{ type: String, index: true }],
     age: { type: Number },
@@ -64,7 +72,32 @@ const CVSchema = new Schema<ICV>({
 });
 
 // Create text indexes for search
-CVSchema.index({ filename: 'text', tags: 'text', department: 'text', email: 'text' });
+CVSchema.index({
+    filename: 'text',
+    'analysis.technicalSkills': 'text',
+    'analysis.softSkills': 'text',
+    'analysis.languages.name': 'text',
+    'analysis.education.school': 'text',
+    'analysis.education.degree': 'text',
+    'analysis.experience.company': 'text',
+    'analysis.experience.position': 'text',
+    'tags': 'text',
+    department: 'text',
+    email: 'text'
+}, {
+    weights: {
+        filename: 10,
+        'tags': 8,
+        'analysis.technicalSkills': 7,
+        'analysis.softSkills': 6,
+        'analysis.experience.position': 5,
+        department: 5,
+        'analysis.education.degree': 4,
+        'analysis.languages.name': 3,
+        email: 2
+    },
+    name: 'cv_search_index'
+});
 
 // Ensure model is not recompiled
 const CV = mongoose.models.CV || mongoose.model<ICV>('CV', CVSchema);

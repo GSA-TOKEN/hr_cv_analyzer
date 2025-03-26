@@ -205,11 +205,21 @@ export default function ResumeView() {
 
             // Count successful and failed analyses
             const successful = result.results.filter(
-                (r: any) => r.status === 'fulfilled' && r.value.success
+                (r: any) => {
+                    // Ensure r and r.value exist before accessing r.value.success
+                    return r &&
+                        ((r.status === 'fulfilled' && r.value && r.value.success) ||
+                            (r.success === true));
+                }
             ).length
 
             const failed = result.results.filter(
-                (r: any) => r.status === 'rejected' || !r.value.success
+                (r: any) => {
+                    // Ensure r and r.value exist before accessing r.value.success
+                    return r &&
+                        ((r.status === 'rejected' || (r.value && !r.value.success)) ||
+                            (r.success === false));
+                }
             ).length
 
             toast.success(`Successfully analyzed ${successful} file(s)${failed > 0 ? `, ${failed} failed` : ''}`)

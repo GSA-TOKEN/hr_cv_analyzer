@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cvStore } from '@/lib/cv-store';
-import { extractTextFromFile } from '@/utils/ocr';
-import { fixCV } from '@/utils/openai-cv-fixer';
-import { parseCV, convertParsedCVToTags } from '@/utils/openai-cv-parser';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { cvAnalysisService } from '@/utils/cv-analysis-service';
 
 // Configure API endpoint to accept larger request bodies
 export const config = {
@@ -30,29 +25,24 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Process each CV analysis in parallel
-        const results = await Promise.allSettled(
-            ids.map(async (id) => {
-                try {
-                    const analyzedCV = await cvStore.analyzeCV(id);
-                    return {
-                        id,
-                        success: true,
-                        cv: analyzedCV
-                    };
-                } catch (error: any) {
-                    return {
-                        id,
-                        success: false,
-                        error: error.message
-                    };
-                }
-            })
-        );
+        // Process CVs using the analysis service
+        const results = await cvAnalysisService.analyzeCVs(ids);
 
-        return NextResponse.json({ results });
+        // Ensure consistent format for the results
+        // Even if a Promise.allSettled-style interface was expected
+        const formattedResults = results.map(result => ({
+            status: 'fulfilled',
+            value: result,
+            // Add direct success property for backward compatibility
+            success: result.success,
+            id: result.id,
+            message: result.message,
+            error: result.error
+        }));
+
+        return NextResponse.json({ results: formattedResults });
     } catch (error: any) {
-        console.error('Error analyzing CVs:', error);
+        console.error('Error in analyze-cvs endpoint:', error);
         return NextResponse.json(
             { error: 'Failed to analyze CVs' },
             { status: 500 }
