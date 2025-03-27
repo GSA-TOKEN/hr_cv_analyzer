@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { FileText } from 'lucide-react';
+import { FileText, Users } from 'lucide-react';
 
 export default function NotFound() {
     return (
@@ -16,10 +16,16 @@ export default function NotFound() {
                         Return Home
                     </Button>
                 </Link>
-                <Link href="/cv-test">
+                <Link href="/candidates">
+                    <Button variant="outline">
+                        <Users className="h-4 w-4 mr-2" />
+                        Candidate Search
+                    </Button>
+                </Link>
+                <Link href="/cvs">
                     <Button variant="outline">
                         <FileText className="h-4 w-4 mr-2" />
-                        CV Test Page
+                        CV Management
                     </Button>
                 </Link>
             </div>

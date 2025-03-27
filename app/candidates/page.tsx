@@ -12,18 +12,7 @@ import CVAnalysisDialog from '@/app/components/CV/CVAnalysisDialog';
 import CVDetailDialog from '@/app/components/CV/CVDetailDialog';
 import CVTableView from '@/app/components/CV/CVTableView';
 import TagFilterDropdown from '@/app/components/Search/TagFilterDropdown';
-import DemographicFilterDropdown from '@/app/components/Search/DemographicFilterDropdown';
 import { Search, CircleAlert, RefreshCw, FileUp, Filter, LayoutGrid, List } from 'lucide-react';
-import CVDemographicInfo from '@/app/components/CV/CVDemographicInfo';
-
-// Define demographic filter interface
-interface DemographicFilters {
-    age?: [number, number];
-    department?: string;
-    expectedSalary?: [number, number];
-    firstName?: string;
-    lastName?: string;
-}
 
 // Define view types
 type ViewType = 'grid' | 'table';
@@ -37,7 +26,6 @@ export default function CandidateSearchPage() {
     const [detailOpen, setDetailOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
-    const [demographicFilters, setDemographicFilters] = useState<DemographicFilters>({});
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [viewType, setViewType] = useState<ViewType>('table'); // Default to table view
@@ -55,7 +43,7 @@ export default function CandidateSearchPage() {
         }, 300); // Debounce API calls by 300ms
 
         return () => clearTimeout(debounceTimer);
-    }, [searchTerm, selectedTags, demographicFilters, pagination.page]);
+    }, [searchTerm, selectedTags, pagination.page]);
 
     // Function to fetch CVs from API with search parameters
     const fetchCVs = async () => {
@@ -63,29 +51,6 @@ export default function CandidateSearchPage() {
         setError(null);
 
         try {
-            // Clean up demographic filters before sending to API
-            const cleanedDemographicFilters = Object.entries(demographicFilters).reduce<DemographicFilters>((acc, [key, value]) => {
-                if (value !== undefined && value !== null && value !== '') {
-                    if (Array.isArray(value)) {
-                        // For range filters, only include if they have valid values
-                        if (value.length === 2 && value[0] !== value[1]) {
-                            if (key === 'age') {
-                                acc.age = value as [number, number];
-                            } else if (key === 'expectedSalary') {
-                                acc.expectedSalary = value as [number, number];
-                            }
-                        }
-                    } else if (key === 'firstName') {
-                        acc.firstName = value as string;
-                    } else if (key === 'lastName') {
-                        acc.lastName = value as string;
-                    } else if (key === 'department') {
-                        acc.department = value as string;
-                    }
-                }
-                return acc;
-            }, {});
-
             // Use the advanced search API endpoint with all filters
             const response = await fetch('/api/cvs/advanced-search', {
                 method: 'POST',
@@ -95,7 +60,6 @@ export default function CandidateSearchPage() {
                 body: JSON.stringify({
                     searchTerm,
                     tags: selectedTags,
-                    demographic: cleanedDemographicFilters,
                     page: pagination.page,
                     limit: pagination.limit
                 }),
@@ -171,15 +135,14 @@ export default function CandidateSearchPage() {
     const resetFilters = () => {
         setSearchTerm('');
         setSelectedTags([]);
-        setDemographicFilters({});
         setPagination(prev => ({ ...prev, page: 1 }));
     };
 
     // Check if any filters are active
-    const hasActiveFilters = searchTerm || selectedTags.length > 0 || Object.keys(demographicFilters).length > 0;
+    const hasActiveFilters = searchTerm || selectedTags.length > 0;
 
     // Get count of active filters
-    const activeFilterCount = (searchTerm ? 1 : 0) + selectedTags.length + Object.keys(demographicFilters).length;
+    const activeFilterCount = (searchTerm ? 1 : 0) + selectedTags.length;
 
     // Toggle between grid and table view
     const toggleViewType = () => {
@@ -189,11 +152,6 @@ export default function CandidateSearchPage() {
     // Handle filter changes with useCallback to prevent recreating functions on each render
     const handleTagFilterChange = useCallback((tags: string[]) => {
         setSelectedTags(tags);
-        setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
-    }, []);
-
-    const handleDemographicFilterChange = useCallback((filters: DemographicFilters) => {
-        setDemographicFilters(filters);
         setPagination(prev => ({ ...prev, page: 1 })); // Reset to first page on filter change
     }, []);
 
@@ -252,20 +210,11 @@ export default function CandidateSearchPage() {
                         />
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
-                        <div className="w-full sm:w-auto">
-                            <TagFilterDropdown
-                                onFilterChange={handleTagFilterChange}
-                                initialSelectedTags={selectedTags}
-                            />
-                        </div>
-
-                        <div className="w-full sm:w-auto">
-                            <DemographicFilterDropdown
-                                onFilterChange={handleDemographicFilterChange}
-                                initialFilters={demographicFilters}
-                            />
-                        </div>
+                    <div className="w-full sm:w-auto">
+                        <TagFilterDropdown
+                            onFilterChange={handleTagFilterChange}
+                            initialSelectedTags={selectedTags}
+                        />
                     </div>
                 </div>
 

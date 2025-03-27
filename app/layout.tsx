@@ -3,7 +3,7 @@ import { Inter } from "next/font/google"
 import './globals.css'
 import { Toaster } from "sonner"
 import Link from 'next/link'
-import { FileText, Users, BarChart } from 'lucide-react'
+import { FileText, Users } from 'lucide-react'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -41,13 +41,6 @@ export default function RootLayout({
               >
                 <Users className="h-4 w-4 mr-2" />
                 Candidate Search
-              </Link>
-              <Link
-                href="/cv-test"
-                className="inline-flex items-center text-sm px-3 py-2 text-gray-700 hover:text-black hover:bg-gray-100 rounded-md transition-colors"
-              >
-                <BarChart className="h-4 w-4 mr-2" />
-                CV Test
               </Link>
             </nav>
           </div>
