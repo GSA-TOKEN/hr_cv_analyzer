@@ -2,292 +2,241 @@ import React, { useState, useEffect } from 'react';
 import {
     DropdownMenu,
     DropdownMenuContent,
-    DropdownMenuGroup,
-    DropdownMenuItem,
     DropdownMenuLabel,
-    DropdownMenuPortal,
-    DropdownMenuSeparator,
-    DropdownMenuSub,
-    DropdownMenuSubContent,
-    DropdownMenuSubTrigger,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Check, ChevronDown, Filter, X } from 'lucide-react';
+import { Check, ChevronDown, Filter, X, ChevronRight } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 // Define types for tag categories
-interface CategoryOption {
+interface TagOption {
     label: string;
     options: string[];
 }
 
-interface CategoryWithGroups {
+interface TagGroup {
     label: string;
-    groups: Record<string, { label: string, options: string[] }>;
+    options: string[];
 }
 
-type TagCategory = CategoryOption | CategoryWithGroups;
+interface TagCategory {
+    label: string;
+    options?: string[];
+    groups?: Record<string, TagGroup>;
+}
 
-// Helper to check if a category has groups
-const hasGroups = (category: TagCategory): category is CategoryWithGroups => {
-    return 'groups' in category;
-};
-
-// Define tag categories matching the CV parser categories
+// Define tag categories and their options
 const tagCategories: Record<string, TagCategory> = {
-    'age': {
-        label: 'Age',
-        options: [
-            'under-18',
-            '18-22',
-            '23-28',
-            '28-35',
-            '36-45',
-            '46+'
-        ]
-    },
-    'language': {
-        label: 'Languages',
-        options: [
-            'english-native',
-            'english-fluent',
-            'english-advanced',
-            'english-intermediate',
-            'english-basic',
-            'french-native',
-            'french-fluent',
-            'french-advanced',
-            'french-intermediate',
-            'french-basic',
-            'german-native',
-            'german-fluent',
-            'german-advanced',
-            'german-intermediate',
-            'german-basic',
-            'spanish-native',
-            'spanish-fluent',
-            'spanish-advanced',
-            'spanish-intermediate',
-            'spanish-basic',
-            'turkish-native',
-            'turkish-fluent',
-            'turkish-advanced',
-            'turkish-intermediate',
-            'turkish-basic',
-            'russian-native',
-            'russian-fluent',
-            'russian-advanced',
-            'russian-intermediate',
-            'russian-basic'
-        ]
-    },
-    'education': {
-        label: 'Education',
-        options: [
-            'high-school',
-            'associate-degree',
-            'bachelors-degree',
-            'masters-degree',
-            'phd',
-            'vocational-certificate',
-            'professional-diploma',
-            'industry-certification'
-        ]
-    },
-    'field': {
-        label: 'Field of Study',
-        options: [
-            'hospitality-management',
-            'tourism',
-            'culinary-arts',
-            'business-administration',
-            'finance-accounting',
-            'engineering',
-            'it-computer-science',
-            'recreation-management',
-            'marketing-communications',
-            'human-resources',
-            'health-safety',
-            'sports-leisure',
-            'environmental-management',
-            'spa-wellness',
-            'landscape-architecture'
-        ]
-    },
-    'experience': {
-        label: 'Experience',
-        options: [
-            'no-experience',
-            'less-than-1-year',
-            '1-3-years',
-            '3-5-years',
-            '5-10-years',
-            '10+-years'
-        ]
-    },
-    'establishment': {
-        label: 'Establishment Type',
-        options: [
-            'luxury-resort',
-            'business-hotel',
-            'restaurant-bar',
-            'tour-operator',
-            'cruise-line',
-            'event-company',
-            'corporate-office',
-            'chain-hotel',
-            'boutique-property',
-            'casino',
-            'golf-resort',
-            'thermal-wellness-resort',
-            'all-inclusive-resort',
-            'timeshare-property'
-        ]
-    },
-    'position': {
-        label: 'Position Level',
-        options: [
-            'entry-level',
-            'specialist',
-            'supervisor',
-            'manager',
-            'department-head',
-            'director',
-            'executive'
-        ]
-    },
-    'technical-skill': {
-        label: 'Technical Skills',
+    languages: {
+        label: "Languages",
         groups: {
-            'front-office': {
-                label: 'Front Office / Reservation',
+            english: {
+                label: "English",
                 options: [
-                    'pms-systems',
-                    'booking-engines',
-                    'payment-processing',
-                    'crm-software',
-                    'channel-management',
-                    'yield-management',
-                    'guest-loyalty-programs',
-                    'check-in-out-procedures',
-                    'foreign-exchange',
-                    'complaint-management'
+                    "language:english-native",
+                    "language:english-fluent",
+                    "language:english-advanced",
+                    "language:english-intermediate",
+                    "language:english-basic"
                 ]
             },
-            'housekeeping': {
-                label: 'Housekeeping / Laundry',
+            spanish: {
+                label: "Spanish",
                 options: [
-                    'inventory-management',
-                    'quality-control',
-                    'room-inspection',
-                    'sustainability-practices',
-                    'linen-management',
-                    'deep-cleaning-protocols',
-                    'amenity-setup',
-                    'vip-room-preparation'
+                    "language:spanish-native",
+                    "language:spanish-fluent",
+                    "language:spanish-advanced",
+                    "language:spanish-intermediate",
+                    "language:spanish-basic"
                 ]
             },
-            'fb-kitchen': {
-                label: 'F&B / Kitchen',
+            french: {
+                label: "French",
                 options: [
-                    'food-safety',
-                    'culinary-techniques',
-                    'menu-planning',
-                    'cost-control',
-                    'pos-systems',
-                    'specialty-cuisine',
-                    'beverage-service',
-                    'banquet-operations',
-                    'buffet-management',
-                    'restaurant-reservation',
-                    'allergen-management',
-                    'wine-knowledge',
-                    'cocktail-preparation'
+                    "language:french-native",
+                    "language:french-fluent",
+                    "language:french-advanced",
+                    "language:french-intermediate",
+                    "language:french-basic"
                 ]
             },
-            'it-technical': {
-                label: 'IT / Technical',
+            german: {
+                label: "German",
                 options: [
-                    'project-management',
-                    'software-development',
-                    'database-management',
-                    'network-administration',
-                    'system-analysis',
-                    'ui-ux-design',
-                    'mobile-development',
-                    'web-development',
-                    'cloud-services',
-                    'cybersecurity',
-                    'data-analysis',
-                    'it-support'
+                    "language:german-native",
+                    "language:german-fluent",
+                    "language:german-advanced",
+                    "language:german-intermediate",
+                    "language:german-basic"
                 ]
             },
-            'accounting-finance': {
-                label: 'Accounting / Finance',
+            chinese: {
+                label: "Chinese",
                 options: [
-                    'financial-analysis',
-                    'budgeting',
-                    'forecasting',
-                    'auditing',
-                    'payroll-management',
-                    'accounts-receivable',
-                    'accounts-payable',
-                    'tax-preparation',
-                    'financial-reporting',
-                    'bookkeeping'
+                    "language:chinese-native",
+                    "language:chinese-fluent",
+                    "language:chinese-advanced",
+                    "language:chinese-intermediate",
+                    "language:chinese-basic"
+                ]
+            },
+            japanese: {
+                label: "Japanese",
+                options: [
+                    "language:japanese-native",
+                    "language:japanese-fluent",
+                    "language:japanese-advanced",
+                    "language:japanese-intermediate",
+                    "language:japanese-basic"
+                ]
+            },
+            korean: {
+                label: "Korean",
+                options: [
+                    "language:korean-native",
+                    "language:korean-fluent",
+                    "language:korean-advanced",
+                    "language:korean-intermediate",
+                    "language:korean-basic"
+                ]
+            },
+            arabic: {
+                label: "Arabic",
+                options: [
+                    "language:arabic-native",
+                    "language:arabic-fluent",
+                    "language:arabic-advanced",
+                    "language:arabic-intermediate",
+                    "language:arabic-basic"
+                ]
+            },
+            russian: {
+                label: "Russian",
+                options: [
+                    "language:russian-native",
+                    "language:russian-fluent",
+                    "language:russian-advanced",
+                    "language:russian-intermediate",
+                    "language:russian-basic"
+                ]
+            },
+            portuguese: {
+                label: "Portuguese",
+                options: [
+                    "language:portuguese-native",
+                    "language:portuguese-fluent",
+                    "language:portuguese-advanced",
+                    "language:portuguese-intermediate",
+                    "language:portuguese-basic"
                 ]
             }
         }
     },
-    'soft-skill': {
-        label: 'Soft Skills',
+    education: {
+        label: "Education",
         options: [
-            'communication',
-            'problem-solving',
-            'leadership',
-            'conflict-management',
-            'time-management',
-            'attention-to-detail',
-            'cultural-sensitivity',
-            'adaptability',
-            'work-under-pressure',
-            'emotional-intelligence',
-            'decision-making',
-            'initiative',
-            'creativity',
-            'strategic-thinking',
-            'negotiation',
-            'active-listening',
-            'crisis-management',
-            'delegation',
-            'coaching-mentoring',
-            'multitasking'
+            "education:high-school",
+            "education:associate-degree",
+            "education:bachelors-degree",
+            "education:masters-degree",
+            "education:phd",
+            "education:vocational-certificate",
+            "education:professional-diploma",
+            "education:industry-certification"
         ]
     },
-    'certification': {
-        label: 'Certifications',
+    experience: {
+        label: "Experience",
         options: [
-            'food-safety',
-            'first-aid-cpr',
-            'lifeguard',
-            'fire-safety',
-            'security',
-            'spa-wellness',
-            'sommelier',
-            'revenue-management',
-            'environmental-management',
-            'health-safety',
-            'project-management',
-            'it-certification',
-            'guest-service',
-            'hospitality-management'
+            "experience:no-experience",
+            "experience:less-than-1-year",
+            "experience:1-3-years",
+            "experience:3-5-years",
+            "experience:5-10-years",
+            "experience:10+-years"
+        ]
+    },
+    position: {
+        label: "Position",
+        options: [
+            "position:entry-level",
+            "position:specialist",
+            "position:supervisor",
+            "position:manager",
+            "position:department-head",
+            "position:director",
+            "position:executive"
+        ]
+    },
+    field: {
+        label: "Field",
+        options: [
+            "field:hospitality-management",
+            "field:tourism",
+            "field:culinary-arts",
+            "field:business-administration",
+            "field:finance-accounting",
+            "field:engineering",
+            "field:it-computer-science",
+            "field:marketing-communications",
+            "field:human-resources"
+        ]
+    },
+    techskills: {
+        label: "Technical Skills",
+        options: [
+            "technical-skill:front-office",
+            "technical-skill:housekeeping",
+            "technical-skill:fb-kitchen",
+            "technical-skill:it-technical",
+            "technical-skill:accounting-finance",
+            "technical-skill:general"
+        ]
+    },
+    softskills: {
+        label: "Soft Skills",
+        options: [
+            "soft-skill:leadership",
+            "soft-skill:communication",
+            "soft-skill:problem-solving",
+            "soft-skill:teamwork",
+            "soft-skill:time-management",
+            "soft-skill:adaptability",
+            "soft-skill:creativity",
+            "soft-skill:critical-thinking"
+        ]
+    },
+    certifications: {
+        label: "Certifications",
+        options: [
+            "certification:food-safety",
+            "certification:first-aid-cpr",
+            "certification:fire-safety",
+            "certification:hospitality-management"
+        ]
+    },
+    age: {
+        label: "Age Range",
+        options: [
+            "age:under-18",
+            "age:18-22",
+            "age:23-28",
+            "age:29-35",
+            "age:36-45",
+            "age:46+"
         ]
     }
 };
 
 interface TagFilterDropdownProps {
-    onFilterChange: (selectedTags: string[]) => void;
+    onFilterChange: (tags: string[]) => void;
     initialSelectedTags?: string[];
 }
 
@@ -295,155 +244,223 @@ const TagFilterDropdown: React.FC<TagFilterDropdownProps> = ({
     onFilterChange,
     initialSelectedTags = []
 }) => {
+    const [isOpen, setIsOpen] = useState(false);
     const [selectedTags, setSelectedTags] = useState<string[]>(initialSelectedTags);
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+        languages: true,
+        education: false,
+        experience: false,
+        position: false,
+        field: false,
+        techskills: false,
+        softskills: false,
+        certifications: false,
+        age: false
+    });
+    const [openLanguages, setOpenLanguages] = useState<Record<string, boolean>>({});
 
+    // Apply initial tags
     useEffect(() => {
-        onFilterChange(selectedTags);
-    }, [selectedTags]);
+        if (JSON.stringify(initialSelectedTags) !== JSON.stringify(selectedTags)) {
+            setSelectedTags(initialSelectedTags);
+        }
+    }, [initialSelectedTags]);
 
-    // Toggle tag selection
-    const toggleTag = (tag: string) => {
-        setSelectedTags(prev =>
-            prev.includes(tag)
-                ? prev.filter(t => t !== tag)
-                : [...prev, tag]
-        );
+    // Update selected tags and notify parent
+    const updateSelectedTags = (newTags: string[]) => {
+        setSelectedTags(newTags);
+        onFilterChange(newTags);
     };
 
     // Clear all filters
     const clearFilters = () => {
-        setSelectedTags([]);
+        const emptyTags: string[] = [];
+        setSelectedTags(emptyTags);
+        onFilterChange(emptyTags);
     };
 
-    // Render category options
-    const renderOptions = (category: string, options: string[]) => {
-        return (
-            <div className="grid grid-cols-1 gap-1">
-                {options.map((option) => {
-                    const tag = `${category}:${option}`;
-                    const isSelected = selectedTags.includes(tag);
-
-                    return (
-                        <DropdownMenuItem
-                            key={option}
-                            onSelect={(e) => {
-                                e.preventDefault();
-                                toggleTag(tag);
-                            }}
-                            className={`flex items-center justify-between px-2 py-1.5 cursor-pointer ${isSelected ? 'bg-muted' : ''}`}
-                        >
-                            <span className="mr-2">{option.split('-').join(' ')}</span>
-                            {isSelected && <Check className="h-4 w-4" />}
-                        </DropdownMenuItem>
-                    );
-                })}
-            </div>
-        );
+    // Toggle section
+    const toggleSection = (section: string) => {
+        setOpenSections(prev => ({
+            ...prev,
+            [section]: !prev[section]
+        }));
     };
 
-    // Render skill options with nested submenus
-    const renderSkillOptions = (category: string, groups: Record<string, { label: string, options: string[] }>) => {
-        return (
-            <div className="space-y-1">
-                {Object.entries(groups).map(([groupKey, group]) => (
-                    <DropdownMenuSub key={groupKey}>
-                        <DropdownMenuSubTrigger className="px-2 py-1.5">
-                            <span>{group.label}</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                            <DropdownMenuSubContent className="min-w-[220px] max-h-[500px] overflow-y-auto">
-                                <DropdownMenuLabel>{group.label}</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                {renderOptions(`${category}:${groupKey}`, group.options)}
-                            </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                    </DropdownMenuSub>
-                ))}
-            </div>
-        );
+    // Toggle language section
+    const toggleLanguage = (language: string) => {
+        setOpenLanguages(prev => ({
+            ...prev,
+            [language]: !prev[language]
+        }));
     };
 
-    // Add proper display of tag prefixes and cleaner formatting
-    const getTagDisplay = (category: string, value: string): { category: string, value: string } => {
-        // Find the proper category label
-        const categoryKey = Object.keys(tagCategories).find(key => key === category);
-        const categoryLabel = categoryKey ? tagCategories[categoryKey].label : category;
+    // Get all options for a category
+    const getCategoryOptions = (category: TagCategory) => {
+        if (category.groups) {
+            return Object.values(category.groups).flatMap((group: TagGroup) => group.options);
+        }
+        return category.options || [];
+    };
 
-        // Format display value
-        let displayValue = value.split('-').join(' ');
-
-        // Special formatting for nested technical skills
-        if (category === 'technical-skill') {
-            const [group, skill] = value.split(':');
-            if (skill) {
-                // Get group label if available
-                let groupLabel = group;
-                if (categoryKey && hasGroups(tagCategories[categoryKey])) {
-                    const groups = (tagCategories[categoryKey] as CategoryWithGroups).groups;
-                    if (groups[group]) {
-                        groupLabel = groups[group].label;
-                    }
-                }
-                displayValue = `${groupLabel}: ${skill.split('-').join(' ')}`;
+    // Format the tag display by removing the prefix
+    const formatTagDisplay = (tag: string): string => {
+        // For language tags (language:english-native), extract and format both language and level
+        if (tag.startsWith('language:')) {
+            const parts = tag.split(':')[1].split('-');
+            if (parts.length === 2) {
+                const language = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+                const level = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+                return `${level}`;
             }
         }
 
-        return {
-            category: categoryLabel,
-            value: displayValue
-        };
+        // For other tags, remove the prefix and format
+        const parts = tag.split(':');
+        if (parts.length > 1) {
+            return parts[parts.length - 1]
+                .split('-')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(' ');
+        }
+
+        // Fallback
+        return tag;
     };
 
     return (
-        <div className="w-full sm:w-auto">
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        variant={selectedTags.length > 0 ? "default" : "outline"}
-                        className="w-full sm:w-auto justify-between"
-                    >
-                        <div className="flex items-center">
-                            <Filter className="h-4 w-4 mr-2" />
-                            <span>
-                                {selectedTags.length > 0
-                                    ? `${selectedTags.length} Filter${selectedTags.length > 1 ? 's' : ''} Active`
-                                    : 'Filter Candidates'}
-                            </span>
-                        </div>
-                        <ChevronDown className="h-4 w-4 ml-2" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-[280px] max-h-[500px] overflow-y-auto" align="end">
-                    <DropdownMenuLabel className="flex items-center justify-between">
-                        <span>Filter by Candidate Attributes</span>
+        <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+            <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full justify-between">
+                    <div className="flex items-center">
+                        <Filter className="mr-2 h-4 w-4" />
+                        <span>Filter by Attributes</span>
+                        {selectedTags.length > 0 && (
+                            <Badge variant="secondary" className="ml-2">
+                                {selectedTags.length}
+                            </Badge>
+                        )}
+                    </div>
+                    <ChevronDown className="h-4 w-4 opacity-50" />
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+                className="w-[280px]"
+                align="end"
+                sideOffset={5}
+            >
+                <div className="flex flex-col h-[600px]">
+                    <div className="flex items-center justify-between p-2 border-b">
+                        <DropdownMenuLabel className="text-base font-semibold">
+                            Candidate Attributes
+                        </DropdownMenuLabel>
                         {selectedTags.length > 0 && (
                             <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-auto p-0 font-normal text-xs text-muted-foreground hover:text-foreground"
-                                onClick={clearFilters}
+                                className="h-8 text-xs"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    clearFilters();
+                                }}
                             >
-                                Clear All
+                                <X className="mr-1 h-3 w-3" /> Clear all
                             </Button>
                         )}
-                    </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
+                    </div>
 
-                    {Object.entries(tagCategories).map(([key, category]) => (
-                        <DropdownMenuGroup key={key}>
-                            <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">{category.label}</DropdownMenuLabel>
-                            {hasGroups(category)
-                                ? renderSkillOptions(key, category.groups)
-                                : renderOptions(key, category.options)
-                            }
-                            {key !== Object.keys(tagCategories)[Object.keys(tagCategories).length - 1] && (
-                                <DropdownMenuSeparator />
-                            )}
-                        </DropdownMenuGroup>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
+                    <ScrollArea className="flex-1 p-4">
+                        <div className="space-y-2">
+                            {Object.entries(tagCategories).map(([key, category]) => (
+                                <Collapsible key={key} open={openSections[key]} onOpenChange={() => toggleSection(key)}>
+                                    <CollapsibleTrigger className="flex items-center justify-between w-full p-2 hover:bg-accent rounded-md">
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-bold">{category.label}</span>
+                                            {selectedTags.some(tag => getCategoryOptions(category).includes(tag)) && (
+                                                <Badge variant="secondary" className="ml-2">
+                                                    {selectedTags.filter(tag => getCategoryOptions(category).includes(tag)).length}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <ChevronRight className={`h-4 w-4 transition-transform ${openSections[key] ? 'rotate-90' : ''}`} />
+                                    </CollapsibleTrigger>
+                                    <CollapsibleContent className="pt-2">
+                                        {category.groups ? (
+                                            <div className="space-y-2">
+                                                {Object.entries(category.groups).map(([langKey, langGroup]: [string, any]) => (
+                                                    <Collapsible key={langKey} open={openLanguages[langKey]} onOpenChange={() => toggleLanguage(langKey)}>
+                                                        <CollapsibleTrigger className="flex items-center justify-between w-full p-1.5 hover:bg-accent rounded-md">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium">{langGroup.label}</span>
+                                                                {selectedTags.some(tag => langGroup.options.includes(tag)) && (
+                                                                    <Badge variant="secondary" className="ml-2">
+                                                                        {selectedTags.filter(tag => langGroup.options.includes(tag)).length}
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <ChevronRight className={`h-4 w-4 transition-transform ${openLanguages[langKey] ? 'rotate-90' : ''}`} />
+                                                        </CollapsibleTrigger>
+                                                        <CollapsibleContent className="pl-4 pt-1">
+                                                            <div className="grid grid-cols-1 gap-1">
+                                                                {langGroup.options.map((option: string) => (
+                                                                    <div
+                                                                        key={option}
+                                                                        className="flex items-center space-x-1 cursor-pointer hover:bg-accent rounded-sm p-1"
+                                                                        onClick={() => {
+                                                                            const newTags = selectedTags.includes(option)
+                                                                                ? selectedTags.filter(tag => tag !== option)
+                                                                                : [...selectedTags, option];
+                                                                            updateSelectedTags(newTags);
+                                                                        }}
+                                                                    >
+                                                                        <Check
+                                                                            className={`h-3 w-3 ${selectedTags.includes(option)
+                                                                                ? 'text-primary'
+                                                                                : 'text-muted-foreground'
+                                                                                }`}
+                                                                        />
+                                                                        <span className="text-xs truncate">
+                                                                            {formatTagDisplay(option)}
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </CollapsibleContent>
+                                                    </Collapsible>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-1">
+                                                {category.options?.map((option: string) => (
+                                                    <div
+                                                        key={option}
+                                                        className="flex items-center space-x-1 cursor-pointer hover:bg-accent rounded-sm p-1"
+                                                        onClick={() => {
+                                                            const newTags = selectedTags.includes(option)
+                                                                ? selectedTags.filter(tag => tag !== option)
+                                                                : [...selectedTags, option];
+                                                            updateSelectedTags(newTags);
+                                                        }}
+                                                    >
+                                                        <Check
+                                                            className={`h-3 w-3 ${selectedTags.includes(option)
+                                                                ? 'text-primary'
+                                                                : 'text-muted-foreground'
+                                                                }`}
+                                                        />
+                                                        <span className="text-xs truncate">{formatTagDisplay(option)}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </div>
+            </DropdownMenuContent>
+        </DropdownMenu>
     );
 };
 

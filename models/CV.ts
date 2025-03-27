@@ -113,6 +113,13 @@ CVSchema.index({
     name: 'cv_search_index'
 });
 
+// Add indexes for demographic fields
+CVSchema.index({ age: 1 });
+CVSchema.index({ department: 1 });
+CVSchema.index({ expectedSalary: 1 });
+CVSchema.index({ firstName: 1 });
+CVSchema.index({ lastName: 1 });
+
 // Ensure model is not recompiled
 const CV = mongoose.models.CV || mongoose.model<ICV>('CV', CVSchema);
 

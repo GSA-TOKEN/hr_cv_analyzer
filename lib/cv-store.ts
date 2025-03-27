@@ -236,7 +236,7 @@ class CVStore {
     async getCVsByTags(tags: string[]): Promise<ICV[]> {
         await this.ensureInitialized();
         const cvs = await CV.find({
-            tags: { $in: tags }
+            tags: { $all: tags }
         }).sort({ uploadDate: -1 });
 
         return cvs.map(cv => ({

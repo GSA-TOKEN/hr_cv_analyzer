@@ -50,7 +50,11 @@ export default function CandidateSearchPage() {
 
     // Effect to fetch CVs when search params change
     useEffect(() => {
-        fetchCVs();
+        const debounceTimer = setTimeout(() => {
+            fetchCVs();
+        }, 300); // Debounce API calls by 300ms
+
+        return () => clearTimeout(debounceTimer);
     }, [searchTerm, selectedTags, demographicFilters, pagination.page]);
 
     // Function to fetch CVs from API with search parameters
@@ -59,6 +63,29 @@ export default function CandidateSearchPage() {
         setError(null);
 
         try {
+            // Clean up demographic filters before sending to API
+            const cleanedDemographicFilters = Object.entries(demographicFilters).reduce<DemographicFilters>((acc, [key, value]) => {
+                if (value !== undefined && value !== null && value !== '') {
+                    if (Array.isArray(value)) {
+                        // For range filters, only include if they have valid values
+                        if (value.length === 2 && value[0] !== value[1]) {
+                            if (key === 'age') {
+                                acc.age = value as [number, number];
+                            } else if (key === 'expectedSalary') {
+                                acc.expectedSalary = value as [number, number];
+                            }
+                        }
+                    } else if (key === 'firstName') {
+                        acc.firstName = value as string;
+                    } else if (key === 'lastName') {
+                        acc.lastName = value as string;
+                    } else if (key === 'department') {
+                        acc.department = value as string;
+                    }
+                }
+                return acc;
+            }, {});
+
             // Use the advanced search API endpoint with all filters
             const response = await fetch('/api/cvs/advanced-search', {
                 method: 'POST',
@@ -68,7 +95,7 @@ export default function CandidateSearchPage() {
                 body: JSON.stringify({
                     searchTerm,
                     tags: selectedTags,
-                    demographic: demographicFilters,
+                    demographic: cleanedDemographicFilters,
                     page: pagination.page,
                     limit: pagination.limit
                 }),
@@ -79,9 +106,6 @@ export default function CandidateSearchPage() {
             }
 
             const data = await response.json();
-
-            // Log the full CV data to inspect what's being returned from the API
-            console.log('Fetched CV data:', JSON.stringify(data.cvs, null, 2));
 
             // Process the data to ensure proper formatting
             const formattedCVs = data.cvs.map((cv: any) => ({
@@ -95,17 +119,15 @@ export default function CandidateSearchPage() {
                 fileId: cv.fileId,
                 tags: cv.tags || [],
                 analysis: cv.analysis || {},
-                firstName: cv.firstName,
-                lastName: cv.lastName,
-                email: cv.email,
-                phone: cv.phone,
-                age: cv.age,
-                department: cv.department,
-                expectedSalary: cv.expectedSalary,
-                birthdate: cv.birthdate
+                firstName: cv.firstName || '',
+                lastName: cv.lastName || '',
+                email: cv.email || '',
+                phone: cv.phone || '',
+                age: cv.age || null,
+                department: cv.department || '',
+                expectedSalary: cv.expectedSalary || null,
+                birthdate: cv.birthdate || ''
             }));
-
-            console.log(`Processed ${formattedCVs.length} CVs with tags and demographics`);
 
             setCVs(formattedCVs);
             setPagination({

@@ -22,23 +22,25 @@ export async function POST(req: NextRequest) {
 
         // Handle demographic filters
         const { demographic } = searchParams;
-        if (demographic) {
+        if (demographic && Object.keys(demographic).length > 0) {
+            const demographicQuery: any = {};
+
             // First and Last name (partial match)
             if (demographic.firstName) {
-                query.firstName = { $regex: demographic.firstName, $options: 'i' };
+                demographicQuery.firstName = { $regex: demographic.firstName, $options: 'i' };
             }
             if (demographic.lastName) {
-                query.lastName = { $regex: demographic.lastName, $options: 'i' };
+                demographicQuery.lastName = { $regex: demographic.lastName, $options: 'i' };
             }
 
             // Department (partial match)
             if (demographic.department) {
-                query.department = { $regex: demographic.department, $options: 'i' };
+                demographicQuery.department = { $regex: demographic.department, $options: 'i' };
             }
 
             // Age range
             if (demographic.age && Array.isArray(demographic.age) && demographic.age.length === 2) {
-                query.age = {
+                demographicQuery.age = {
                     $gte: demographic.age[0],
                     $lte: demographic.age[1]
                 };
@@ -46,10 +48,16 @@ export async function POST(req: NextRequest) {
 
             // Expected salary range
             if (demographic.expectedSalary && Array.isArray(demographic.expectedSalary) && demographic.expectedSalary.length === 2) {
-                query.expectedSalary = {
+                demographicQuery.expectedSalary = {
                     $gte: demographic.expectedSalary[0],
                     $lte: demographic.expectedSalary[1]
                 };
+            }
+
+            // Only add demographic query if it has conditions
+            if (Object.keys(demographicQuery).length > 0) {
+                query.$and = query.$and || [];
+                query.$and.push(demographicQuery);
             }
         }
 
