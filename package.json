@@ -11,7 +11,9 @@
     "start": "NODE_ENV=production node server.mjs",
     "start-next": "next start -p 3000",
     "lint": "next lint",
-    "check-db": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm scripts/check-db.ts"
+    "check-db": "NODE_OPTIONS='--loader ts-node/esm' ts-node --esm scripts/check-db.ts",
+    "migrate-gender": "node scripts/update-gender.mjs",
+    "migrate-age": "node scripts/update-age-from-birthdate.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "latest",

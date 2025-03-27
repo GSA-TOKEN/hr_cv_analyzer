@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import CV from '@/models/CV';
 import { connectDB } from '@/lib/mongodb';
-import dbConnect from '@/lib/db';
 
 export async function GET(request: NextRequest) {
     try {
@@ -137,6 +136,26 @@ export async function POST(req: NextRequest) {
                     $gte: demographic.expectedSalary[0],
                     $lte: demographic.expectedSalary[1]
                 };
+            }
+
+            // Email (partial match)
+            if (demographic.email) {
+                query.email = { $regex: demographic.email, $options: 'i' };
+            }
+
+            // Phone (partial match)
+            if (demographic.phone) {
+                query.phone = { $regex: demographic.phone, $options: 'i' };
+            }
+
+            // Birthdate (exact match)
+            if (demographic.birthdate) {
+                query.birthdate = demographic.birthdate;
+            }
+
+            // Gender (exact match)
+            if (demographic.gender) {
+                query.gender = demographic.gender;
             }
         }
 

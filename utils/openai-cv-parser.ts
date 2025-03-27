@@ -24,6 +24,7 @@ Analyze the CV text and identify the following categories:
 - Email Address (extract the candidate's email address)
 - Phone Number (extract the candidate's phone number)
 - Date of Birth or Age (extract the candidate's date of birth or age)
+- Gender (extract the candidate's gender if mentioned)
 
 ## 1. Age
 - 18 under
@@ -315,7 +316,8 @@ For demographic information, include a "Demographics" object in your response wi
     "lastName": "...",
     "email": "...",
     "phone": "...",
-    "birthdate": "..."
+    "birthdate": "...",
+    "gender": "..."
   }
 }
 

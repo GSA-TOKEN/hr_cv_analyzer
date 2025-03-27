@@ -85,25 +85,55 @@ export default function ResumeView() {
     const getAgeFromBirthdate = (birthdate: string): number | undefined => {
         if (!birthdate) return undefined;
 
-        // Parse birthdate (assuming format is DD.MM.YYYY)
-        const parts = birthdate.split('.');
-        if (parts.length !== 3) return undefined;
+        try {
+            let birthDate: Date | null = null;
+            const birthdateStr = birthdate.trim();
 
-        const day = parseInt(parts[0], 10);
-        const month = parseInt(parts[1], 10) - 1; // JS months are 0-indexed
-        const year = parseInt(parts[2], 10);
+            // Simple parsing for YYYY-MM-DD format
+            if (/^\d{4}-\d{2}-\d{2}$/.test(birthdateStr)) {
+                const [year, month, day] = birthdateStr.split('-').map(Number);
+                birthDate = new Date(year, month - 1, day);
+            }
+            // MM/DD/YYYY format
+            else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(birthdateStr)) {
+                const [month, day, year] = birthdateStr.split('/').map(Number);
+                birthDate = new Date(year, month - 1, day);
+            }
+            // DD.MM.YYYY format (common in some regions)
+            else if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(birthdateStr)) {
+                const [day, month, year] = birthdateStr.split('.').map(Number);
+                birthDate = new Date(year, month - 1, day);
+            }
+            // Try to extract year if all else fails
+            else {
+                const yearMatch = birthdateStr.match(/\b(19\d{2}|20\d{2})\b/);
+                if (yearMatch && yearMatch.length > 0) {
+                    const birthYear = parseInt(yearMatch[0]);
+                    return new Date().getFullYear() - birthYear;
+                }
+                return undefined;
+            }
 
-        const birthdateObj = new Date(year, month, day);
-        const today = new Date();
+            // Calculate age if we have a valid birthdate
+            if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
 
-        let age = today.getFullYear() - birthdateObj.getFullYear();
-        const m = today.getMonth() - birthdateObj.getMonth();
+                // Adjust age if birthday hasn't occurred yet this year
+                if (
+                    today.getMonth() < birthDate.getMonth() ||
+                    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+                ) {
+                    age--;
+                }
 
-        if (m < 0 || (m === 0 && today.getDate() < birthdateObj.getDate())) {
-            age--;
+                return age;
+            }
+        } catch (error) {
+            console.error('Error calculating age from birthdate:', error);
         }
 
-        return age;
+        return undefined;
     }
 
     // Filter by CV availability
@@ -357,6 +387,9 @@ export default function ResumeView() {
                                 <p className="text-green-600">Analysis complete</p> :
                                 <p>Not yet analyzed</p>
                             }
+                            {(cv.firstName || cv.lastName) && (
+                                <p className="truncate">{[cv.firstName, cv.lastName].filter(Boolean).join(' ')}</p>
+                            )}
                             {cv.email && <p className="truncate">{cv.email}</p>}
                             {cv.phone && <p className="truncate">{cv.phone}</p>}
                         </div>
@@ -591,6 +624,14 @@ export default function ResumeView() {
                                             </CardHeader>
                                             <CardContent>
                                                 <div className="grid grid-cols-2 gap-4">
+                                                    {(viewAnalysis.firstName || viewAnalysis.lastName) && (
+                                                        <div>
+                                                            <p className="text-sm font-medium">Full Name</p>
+                                                            <p className="text-sm text-muted-foreground">
+                                                                {[viewAnalysis.firstName, viewAnalysis.lastName].filter(Boolean).join(' ')}
+                                                            </p>
+                                                        </div>
+                                                    )}
                                                     {viewAnalysis.email && (
                                                         <div>
                                                             <p className="text-sm font-medium">Email</p>

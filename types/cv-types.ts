@@ -64,6 +64,7 @@ export interface Demographics {
   email: string
   phone: string
   birthdate: string
+  gender: string
 }
 
 export interface CVAnalysisResult {

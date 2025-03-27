@@ -1,7 +1,8 @@
 import React from 'react';
-import { Calendar, Briefcase, Mail, Phone, DollarSign, User } from 'lucide-react';
+import { Calendar, Briefcase, Mail, Phone, DollarSign, User, UserCircle2 } from 'lucide-react';
 import { ICV } from '@/lib/cv-store';
 import { Badge } from '@/components/ui/badge';
+import { parseISO, parse, differenceInYears } from 'date-fns';
 
 interface CVDemographicInfoProps {
     cv: ICV;
@@ -19,20 +20,103 @@ const CVDemographicInfo: React.FC<CVDemographicInfoProps> = ({ cv, compact = fal
         }).format(salary);
     };
 
+    // Calculate age from birthdate if age is not provided directly
+    const getAge = (cv: ICV): number | null => {
+        // If age is already provided, use it
+        if (cv.age) {
+            return cv.age;
+        }
+
+        // Try to calculate from birthdate if available
+        if (cv.birthdate) {
+            try {
+                let birthDate: Date | null = null;
+                const birthdateStr = cv.birthdate.trim();
+
+                // Simple parsing for YYYY-MM-DD format
+                if (/^\d{4}-\d{2}-\d{2}$/.test(birthdateStr)) {
+                    const [year, month, day] = birthdateStr.split('-').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // MM/DD/YYYY format
+                else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(birthdateStr)) {
+                    const [month, day, year] = birthdateStr.split('/').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // DD/MM/YYYY format
+                else if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(birthdateStr)) {
+                    const [day, month, year] = birthdateStr.split('.').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // Other formats via date-fns
+                else {
+                    try {
+                        // Try different formats
+                        const formatAttempts = [
+                            'MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd',
+                            'MMMM d, yyyy', 'MMM d, yyyy', 'MMMM d yyyy', 'MMM d yyyy'
+                        ];
+
+                        for (const format of formatAttempts) {
+                            try {
+                                birthDate = parse(birthdateStr, format, new Date());
+                                if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+                                    break;
+                                }
+                            } catch (e) {
+                                // Continue to next format
+                            }
+                        }
+                    } catch (e) {
+                        // If all parsing attempts fail, extract year if possible
+                        const yearMatch = birthdateStr.match(/\b(19\d{2}|20\d{2})\b/);
+                        if (yearMatch && yearMatch.length > 0) {
+                            const birthYear = parseInt(yearMatch[0]);
+                            return new Date().getFullYear() - birthYear;
+                        }
+                    }
+                }
+
+                // Calculate age if we have a valid birthdate
+                if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+
+                    // Adjust age if birthday hasn't occurred yet this year
+                    if (
+                        today.getMonth() < birthDate.getMonth() ||
+                        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+                    ) {
+                        age--;
+                    }
+
+                    return age;
+                }
+            } catch (error) {
+                console.error('Error calculating age from birthdate:', error);
+            }
+        }
+
+        return null;
+    };
+
+    // Get calculated age
+    const age = getAge(cv);
+
     if (compact) {
         // Compact view for cards
         return (
             <div className="text-sm space-y-1">
-                {(cv.firstName || cv.lastName) && (
-                    <div className="font-medium flex items-center gap-1">
-                        <User className="h-3.5 w-3.5 text-gray-500" />
-                        {[cv.firstName, cv.lastName].filter(Boolean).join(' ')}
-                    </div>
-                )}
-                {cv.age && (
+                {age && (
                     <div className="text-gray-500 flex items-center gap-1">
                         <Calendar className="h-3.5 w-3.5" />
-                        {cv.age} years old
+                        {age} years old
+                    </div>
+                )}
+                {cv.gender && (
+                    <div className="text-gray-500 flex items-center gap-1">
+                        <UserCircle2 className="h-3.5 w-3.5" />
+                        {cv.gender}
                     </div>
                 )}
                 {cv.department && (
@@ -60,12 +144,22 @@ const CVDemographicInfo: React.FC<CVDemographicInfoProps> = ({ cv, compact = fal
                     </div>
                 )}
 
-                {cv.age && (
+                {age && (
                     <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-blue-500" />
                         <div>
                             <div className="text-sm text-gray-500">Age</div>
-                            <div>{cv.age} years old</div>
+                            <div>{age} years old</div>
+                        </div>
+                    </div>
+                )}
+
+                {cv.gender && (
+                    <div className="flex items-center gap-2">
+                        <UserCircle2 className="h-4 w-4 text-blue-500" />
+                        <div>
+                            <div className="text-sm text-gray-500">Gender</div>
+                            <div>{cv.gender}</div>
                         </div>
                     </div>
                 )}

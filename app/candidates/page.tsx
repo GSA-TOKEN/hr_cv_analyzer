@@ -89,6 +89,7 @@ export default function CandidateSearchPage() {
                 phone: cv.phone || '',
                 age: cv.age || null,
                 department: cv.department || '',
+                gender: cv.gender || '',
                 expectedSalary: cv.expectedSalary || null,
                 birthdate: cv.birthdate || ''
             }));

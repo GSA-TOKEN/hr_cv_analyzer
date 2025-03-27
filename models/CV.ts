@@ -17,6 +17,7 @@ export interface ICV extends Document {
     email?: string;
     phone?: string;
     birthdate?: string;
+    gender?: string;
     expectedSalary?: number;
 
     originalTextFileId?: string;
@@ -46,13 +47,14 @@ const CVSchema = new Schema<ICV>({
     tags: [{ type: String, index: true }],
 
     // Demographic information
-    firstName: { type: String, index: true },
-    lastName: { type: String, index: true },
-    age: { type: Number, index: true },
-    department: { type: String, index: true },
+    firstName: { type: String },
+    lastName: { type: String },
+    age: { type: Number },
+    department: { type: String },
     email: { type: String, index: true },
     phone: { type: String },
     birthdate: { type: String },
+    gender: { type: String },
     expectedSalary: { type: Number },
 
     originalTextFileId: { type: String },

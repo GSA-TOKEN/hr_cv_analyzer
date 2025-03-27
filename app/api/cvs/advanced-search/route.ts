@@ -54,6 +54,26 @@ export async function POST(req: NextRequest) {
                 };
             }
 
+            // Email (partial match)
+            if (demographic.email) {
+                demographicQuery.email = { $regex: demographic.email, $options: 'i' };
+            }
+
+            // Phone (partial match)
+            if (demographic.phone) {
+                demographicQuery.phone = { $regex: demographic.phone, $options: 'i' };
+            }
+
+            // Birthdate (exact match)
+            if (demographic.birthdate) {
+                demographicQuery.birthdate = demographic.birthdate;
+            }
+
+            // Gender (exact match)
+            if (demographic.gender) {
+                demographicQuery.gender = demographic.gender;
+            }
+
             // Only add demographic query if it has conditions
             if (Object.keys(demographicQuery).length > 0) {
                 query.$and = query.$and || [];
@@ -97,6 +117,7 @@ export async function POST(req: NextRequest) {
                 phone: cv.phone || '',
                 department: cv.department || '',
                 birthdate: cv.birthdate || '',
+                gender: cv.gender || '',
                 age: cv.age || null,
                 expectedSalary: cv.expectedSalary || null,
                 status: cv.status || 'pending',

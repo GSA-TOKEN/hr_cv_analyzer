@@ -20,6 +20,7 @@ export interface ICV {
     email?: string;
     phone?: string;
     birthdate?: string;
+    gender?: string;
     expectedSalary?: number;
 
     originalTextFileId?: string;
@@ -74,6 +75,7 @@ class CVStore {
             email: cv.email,
             phone: cv.phone,
             birthdate: cv.birthdate,
+            gender: cv.gender,
             expectedSalary: cv.expectedSalary,
             originalTextFileId: cv.originalTextFileId,
             enhancedTextFileId: cv.enhancedTextFileId,
@@ -101,6 +103,7 @@ class CVStore {
             email: cv.email,
             phone: cv.phone,
             birthdate: cv.birthdate,
+            gender: cv.gender,
             expectedSalary: cv.expectedSalary,
             originalTextFileId: cv.originalTextFileId,
             enhancedTextFileId: cv.enhancedTextFileId,
@@ -197,6 +200,7 @@ class CVStore {
             email: cv.email,
             phone: cv.phone,
             birthdate: cv.birthdate,
+            gender: cv.gender,
             expectedSalary: cv.expectedSalary,
             originalTextFileId: cv.originalTextFileId,
             enhancedTextFileId: cv.enhancedTextFileId,
@@ -225,6 +229,7 @@ class CVStore {
             email: cv.email,
             phone: cv.phone,
             birthdate: cv.birthdate,
+            gender: cv.gender,
             expectedSalary: cv.expectedSalary,
             originalTextFileId: cv.originalTextFileId,
             enhancedTextFileId: cv.enhancedTextFileId,
@@ -253,6 +258,7 @@ class CVStore {
             email: cv.email,
             phone: cv.phone,
             birthdate: cv.birthdate,
+            gender: cv.gender,
             expectedSalary: cv.expectedSalary,
             originalTextFileId: cv.originalTextFileId,
             enhancedTextFileId: cv.enhancedTextFileId,

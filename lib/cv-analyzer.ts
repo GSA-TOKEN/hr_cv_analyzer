@@ -89,6 +89,7 @@ function extractDemographicInfo(text: string, filename: string) {
     email: '',
     phone: '',
     birthdate: '',
+    gender: '',
   }
 
   // Try to extract full name from the first line of text
@@ -159,6 +160,35 @@ function extractDemographicInfo(text: string, filename: string) {
         result.birthdate = dateMatches[0]
         break
       }
+    }
+  }
+
+  // Try to extract gender information
+  const genderKeywords = ['gender:', 'gender', 'sex:', 'sex'];
+  const genderRegex = /\b(male|female|other|non-binary|prefer not to say)\b/i;
+
+  // First check if there's a gender keyword with a gender value nearby
+  for (const keyword of genderKeywords) {
+    if (textLower.includes(keyword)) {
+      // Find the index of the keyword
+      const keywordIndex = textLower.indexOf(keyword);
+      // Check the text around the keyword for a gender indication
+      const textAroundKeyword = text.substring(keywordIndex, keywordIndex + 30);
+      const genderMatches = textAroundKeyword.match(genderRegex);
+      if (genderMatches && genderMatches.length > 0) {
+        result.gender = genderMatches[0].charAt(0).toUpperCase() + genderMatches[0].slice(1).toLowerCase();
+        break;
+      }
+    }
+  }
+
+  // If we still don't have gender and there's a 'Mr.' or 'Ms.' or similar in the first few lines, use that
+  if (!result.gender) {
+    const topPortion = text.substring(0, Math.min(300, text.length));
+    if (/\bMr\.?\b/i.test(topPortion)) {
+      result.gender = 'Male';
+    } else if (/\b(Ms\.?|Mrs\.?|Miss)\b/i.test(topPortion)) {
+      result.gender = 'Female';
     }
   }
 

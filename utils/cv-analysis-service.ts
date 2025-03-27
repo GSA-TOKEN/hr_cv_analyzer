@@ -166,7 +166,7 @@ export class CVAnalysisService {
             }
 
             // Extract demographic information
-            let firstName = '', lastName = '', email = '', phone = '', birthdate = '';
+            let firstName = '', lastName = '', email = '', phone = '', birthdate = '', gender = '';
 
             // Use Demographics object if available
             if (parsedCV.Demographics) {
@@ -175,6 +175,7 @@ export class CVAnalysisService {
                 email = parsedCV.Demographics.email || '';
                 phone = parsedCV.Demographics.phone || '';
                 birthdate = parsedCV.Demographics.birthdate || '';
+                gender = parsedCV.Demographics.gender || '';
             }
             // Fallback to previous extraction methods if Demographics object is missing
             else {
@@ -255,6 +256,7 @@ export class CVAnalysisService {
                 email: email || parsedCV.email,
                 phone: phone || parsedCV.phone,
                 birthdate,
+                gender,
                 ...(ageValue !== undefined && { age: ageValue }), // Only set age if we have a numeric value
 
                 // Include parsed department and salary info if available
@@ -269,7 +271,8 @@ export class CVAnalysisService {
                         lastName,
                         email: email || parsedCV.email,
                         phone: phone || parsedCV.phone,
-                        birthdate
+                        birthdate,
+                        gender
                     }
                 },
 

@@ -10,8 +10,8 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ICV } from '@/lib/cv-store';
-import { Eye, FileText, BarChart2, User, Mail, Phone, Calendar, BriefcaseBusiness, Tag, ChevronDown } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { Eye, FileText, BarChart2, User, Mail, Phone, Calendar, BriefcaseBusiness, Tag, ChevronDown, UserCircle2 } from 'lucide-react';
+import { formatDistanceToNow, parseISO, parse, differenceInYears } from 'date-fns';
 import {
     Popover,
     PopoverContent,
@@ -238,6 +238,86 @@ const CVTableView: React.FC<CVTableViewProps> = ({
         );
     };
 
+    // Calculate age from birthdate if age is not provided directly
+    const getAge = (cv: ICV): number | null => {
+        // If age is already provided, use it
+        if (cv.age) {
+            return cv.age;
+        }
+
+        // Try to calculate from birthdate if available
+        if (cv.birthdate) {
+            try {
+                let birthDate: Date | null = null;
+                const birthdateStr = cv.birthdate.trim();
+
+                // Simple parsing for YYYY-MM-DD format
+                if (/^\d{4}-\d{2}-\d{2}$/.test(birthdateStr)) {
+                    const [year, month, day] = birthdateStr.split('-').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // MM/DD/YYYY format
+                else if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(birthdateStr)) {
+                    const [month, day, year] = birthdateStr.split('/').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // DD/MM/YYYY format
+                else if (/^\d{1,2}\.\d{1,2}\.\d{4}$/.test(birthdateStr)) {
+                    const [day, month, year] = birthdateStr.split('.').map(Number);
+                    birthDate = new Date(year, month - 1, day);
+                }
+                // Other formats via date-fns
+                else {
+                    try {
+                        // Try different formats
+                        const formatAttempts = [
+                            'MM/dd/yyyy', 'dd/MM/yyyy', 'yyyy-MM-dd',
+                            'MMMM d, yyyy', 'MMM d, yyyy', 'MMMM d yyyy', 'MMM d yyyy'
+                        ];
+
+                        for (const format of formatAttempts) {
+                            try {
+                                birthDate = parse(birthdateStr, format, new Date());
+                                if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+                                    break;
+                                }
+                            } catch (e) {
+                                // Continue to next format
+                            }
+                        }
+                    } catch (e) {
+                        // If all parsing attempts fail, extract year if possible
+                        const yearMatch = birthdateStr.match(/\b(19\d{2}|20\d{2})\b/);
+                        if (yearMatch && yearMatch.length > 0) {
+                            const birthYear = parseInt(yearMatch[0]);
+                            return new Date().getFullYear() - birthYear;
+                        }
+                    }
+                }
+
+                // Calculate age if we have a valid birthdate
+                if (birthDate instanceof Date && !isNaN(birthDate.getTime())) {
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+
+                    // Adjust age if birthday hasn't occurred yet this year
+                    if (
+                        today.getMonth() < birthDate.getMonth() ||
+                        (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+                    ) {
+                        age--;
+                    }
+
+                    return age;
+                }
+            } catch (error) {
+                console.error('Error calculating age from birthdate:', error);
+            }
+        }
+
+        return null;
+    };
+
     return (
         <div className="rounded-md border overflow-x-auto">
             <Table>
@@ -284,10 +364,16 @@ const CVTableView: React.FC<CVTableViewProps> = ({
                             </TableCell>
                             <TableCell>
                                 <div className="flex flex-col text-sm space-y-1">
-                                    {cv.age && (
+                                    {(cv.age || cv.birthdate) && (
                                         <div className="flex items-center gap-1.5">
                                             <Calendar className="h-3.5 w-3.5 text-gray-500" />
-                                            <span className="text-xs">Age: {cv.age}</span>
+                                            <span className="text-xs">Age: {getAge(cv) || 'Unknown'}</span>
+                                        </div>
+                                    )}
+                                    {cv.gender && (
+                                        <div className="flex items-center gap-1.5">
+                                            <UserCircle2 className="h-3.5 w-3.5 text-gray-500" />
+                                            <span className="text-xs">Gender: {cv.gender}</span>
                                         </div>
                                     )}
                                     {cv.department && (

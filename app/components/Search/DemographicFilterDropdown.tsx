@@ -17,6 +17,13 @@ import {
     CollapsibleContent,
     CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 // Define types for demographic filters
 interface DemographicFilters {
@@ -25,6 +32,10 @@ interface DemographicFilters {
     expectedSalary?: [number, number];
     firstName?: string;
     lastName?: string;
+    email?: string;
+    phone?: string;
+    birthdate?: string;
+    gender?: string;
 }
 
 interface DemographicFilterDropdownProps {
@@ -187,6 +198,55 @@ const DemographicFilterDropdown: React.FC<DemographicFilterDropdownProps> = ({
                                                 onChange={(e) => updateFilters({ ...filters, lastName: e.target.value || undefined })}
                                                 className="h-8 text-sm"
                                             />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="email" className="text-xs">Email</Label>
+                                            <Input
+                                                id="email"
+                                                placeholder="Email"
+                                                value={filters.email || ''}
+                                                onChange={(e) => updateFilters({ ...filters, email: e.target.value || undefined })}
+                                                className="h-8 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="phone" className="text-xs">Phone</Label>
+                                            <Input
+                                                id="phone"
+                                                placeholder="Phone"
+                                                value={filters.phone || ''}
+                                                onChange={(e) => updateFilters({ ...filters, phone: e.target.value || undefined })}
+                                                className="h-8 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2 col-span-2">
+                                            <Label htmlFor="birthdate" className="text-xs">Birthdate</Label>
+                                            <Input
+                                                id="birthdate"
+                                                placeholder="YYYY-MM-DD"
+                                                value={filters.birthdate || ''}
+                                                onChange={(e) => updateFilters({ ...filters, birthdate: e.target.value || undefined })}
+                                                className="h-8 text-sm"
+                                            />
+                                        </div>
+                                        <div className="space-y-2 col-span-2">
+                                            <Label htmlFor="gender" className="text-xs">Gender</Label>
+                                            <Select
+                                                value={filters.gender || ''}
+                                                onValueChange={(value) => updateFilters({ ...filters, gender: value || undefined })}
+                                            >
+                                                <SelectTrigger className="h-8 text-sm">
+                                                    <SelectValue placeholder="Select gender" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="">Any</SelectItem>
+                                                    <SelectItem value="Male">Male</SelectItem>
+                                                    <SelectItem value="Female">Female</SelectItem>
+                                                    <SelectItem value="Other">Other</SelectItem>
+                                                    <SelectItem value="Non-binary">Non-binary</SelectItem>
+                                                    <SelectItem value="Prefer not to say">Prefer not to say</SelectItem>
+                                                </SelectContent>
+                                            </Select>
                                         </div>
                                     </div>
                                 </CollapsibleContent>
