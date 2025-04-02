@@ -3,7 +3,7 @@ import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ICV } from '@/lib/cv-store';
-import { User, FileText, BarChart2, RefreshCw, Mail, Phone, Calendar, Tag } from 'lucide-react';
+import { User, FileText, BarChart2, RefreshCw, Mail, Phone, Calendar, Tag, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import CVDemographicInfo from './CVDemographicInfo';
 
@@ -13,7 +13,9 @@ interface CVCardProps {
     onViewFile?: (cv: ICV) => void;
     onViewAnalysis?: (cv: ICV) => void;
     onAnalyze?: (cv: ICV) => void;
+    onDelete?: (cv: ICV) => void;
     isAnalyzing?: boolean;
+    isDeleting?: boolean;
 }
 
 const CVCard: React.FC<CVCardProps> = ({
@@ -22,7 +24,9 @@ const CVCard: React.FC<CVCardProps> = ({
     onViewFile,
     onViewAnalysis,
     onAnalyze,
-    isAnalyzing
+    onDelete,
+    isAnalyzing,
+    isDeleting
 }) => {
     const uploadDate = new Date(cv.uploadDate);
     const timeAgo = formatDistanceToNow(uploadDate, { addSuffix: true });
@@ -228,6 +232,26 @@ const CVCard: React.FC<CVCardProps> = ({
                         ) : (
                             <>
                                 <RefreshCw className="h-4 w-4 mr-2" /> Analyze
+                            </>
+                        )}
+                    </Button>
+                )}
+
+                {onDelete && (
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex items-center text-red-500 hover:text-red-600 hover:bg-red-50"
+                        onClick={() => onDelete(cv)}
+                        disabled={isDeleting}
+                    >
+                        {isDeleting ? (
+                            <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                            </>
+                        ) : (
+                            <>
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete
                             </>
                         )}
                     </Button>

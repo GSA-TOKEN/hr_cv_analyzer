@@ -13,8 +13,18 @@ import CVCard from '../components/CV/CVCard';
 import CVViewer from '../components/CV/CVViewer';
 import CVAnalysisDialog from '../components/CV/CVAnalysisDialog';
 import { Checkbox } from '@/components/ui/checkbox';
-import { FileUp, Search, CircleAlert, RefreshCw } from 'lucide-react';
+import { FileUp, Search, CircleAlert, RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function CVsPage() {
     const router = useRouter();
@@ -27,6 +37,10 @@ export default function CVsPage() {
     const [error, setError] = useState<string | null>(null);
     const [selectedCVs, setSelectedCVs] = useState<string[]>([]);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+    const [cvToDelete, setCvToDelete] = useState<ICV | null>(null);
+    const [showSingleDeleteDialog, setShowSingleDeleteDialog] = useState(false);
 
     // Fetch CVs on component mount
     useEffect(() => {
@@ -164,9 +178,141 @@ export default function CVsPage() {
         }
     };
 
+    // Handle deleting selected CVs
+    const handleDeleteSelected = async () => {
+        if (selectedCVs.length === 0) {
+            toast.error("No CVs Selected", {
+                description: "Please select at least one CV to delete."
+            });
+            return;
+        }
+
+        setShowDeleteDialog(true);
+    };
+
+    // Execute the delete operation after confirmation
+    const executeDelete = async () => {
+        try {
+            setIsDeleting(true);
+
+            // Delete each selected CV one by one
+            const deletePromises = selectedCVs.map(id =>
+                fetch(`/api/cvs/${id}`, {
+                    method: 'DELETE'
+                }).then(response => {
+                    if (!response.ok) {
+                        throw new Error(`Failed to delete CV with id ${id}`);
+                    }
+                    return response.json();
+                })
+            );
+
+            await Promise.all(deletePromises);
+
+            fetchCVs(); // Refresh the CV list
+            setSelectedCVs([]); // Clear selection
+
+            toast.success("Delete Complete", {
+                description: `Successfully deleted ${selectedCVs.length} CVs.`
+            });
+        } catch (error: any) {
+            console.error('Error deleting CVs:', error);
+            toast.error("Delete Failed", {
+                description: error.message || "Failed to delete selected CVs"
+            });
+        } finally {
+            setIsDeleting(false);
+            setShowDeleteDialog(false);
+        }
+    };
+
+    // Handle deleting a single CV
+    const handleDeleteCV = (cv: ICV) => {
+        setCvToDelete(cv);
+        setShowSingleDeleteDialog(true);
+    };
+
+    // Execute single CV delete after confirmation
+    const executeSingleDelete = async () => {
+        if (!cvToDelete) return;
+
+        try {
+            setIsDeleting(true);
+
+            const response = await fetch(`/api/cvs/${cvToDelete.id}`, {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete CV');
+            }
+
+            await response.json();
+
+            fetchCVs(); // Refresh the CV list
+
+            toast.success("Delete Complete", {
+                description: "CV was successfully deleted."
+            });
+        } catch (error: any) {
+            console.error('Error deleting CV:', error);
+            toast.error("Delete Failed", {
+                description: error.message || "Failed to delete CV"
+            });
+        } finally {
+            setIsDeleting(false);
+            setCvToDelete(null);
+            setShowSingleDeleteDialog(false);
+        }
+    };
+
     return (
         <div className="container mx-auto py-6">
             <h1 className="text-2xl font-bold mb-6">CV Manager</h1>
+
+            {/* Dialog for deleting multiple CVs */}
+            <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Selected CVs</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete {selectedCVs.length} selected CV{selectedCVs.length > 1 ? 's' : ''}?
+                            This action cannot be undone and will permanently remove the CV{selectedCVs.length > 1 ? 's' : ''} from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={executeDelete}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Dialog for deleting a single CV */}
+            <AlertDialog open={showSingleDeleteDialog} onOpenChange={setShowSingleDeleteDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Delete CV</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Are you sure you want to delete the CV "{cvToDelete?.firstName} {cvToDelete?.lastName || cvToDelete?.filename}"?
+                            This action cannot be undone and will permanently remove the CV from the database.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={executeSingleDelete}
+                            className="bg-red-600 hover:bg-red-700"
+                        >
+                            Delete
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
 
             <Tabs defaultValue="view" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -202,6 +348,25 @@ export default function CVsPage() {
                                     <>
                                         <RefreshCw className="h-4 w-4 mr-2" />
                                         Analyze Selected ({selectedCVs.length})
+                                    </>
+                                )}
+                            </Button>
+
+                            <Button
+                                variant="destructive"
+                                onClick={handleDeleteSelected}
+                                disabled={selectedCVs.length === 0 || isDeleting}
+                                className="whitespace-nowrap"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                        Deleting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Trash2 className="h-4 w-4 mr-2" />
+                                        Delete Selected ({selectedCVs.length})
                                     </>
                                 )}
                             </Button>
@@ -241,17 +406,26 @@ export default function CVsPage() {
                                                 onView={handleViewCV}
                                                 onViewAnalysis={handleViewAnalysis}
                                                 onAnalyze={handleAnalyzeCV}
+                                                onDelete={handleDeleteCV}
                                                 isAnalyzing={isAnalyzing}
+                                                isDeleting={isDeleting && cvToDelete?.id === cv.id}
                                             />
                                         </div>
                                     ))}
                                 </div>
                             ) : (
                                 <div className="text-center py-8">
-                                    <FileUp className="h-8 w-8 mx-auto text-gray-400" />
-                                    <p className="mt-2 text-gray-500">
-                                        {searchTerm ? 'No CVs match your search.' : 'No CVs found. Upload your first CV to get started.'}
-                                    </p>
+                                    <FileUp className="h-12 w-12 mx-auto text-gray-400 mb-2" />
+                                    <h3 className="text-lg font-medium mb-1">No CVs Found</h3>
+                                    <p className="text-gray-500 mb-4">Upload a CV to get started</p>
+                                    <Button onClick={() => {
+                                        const uploadTab = document.querySelector('[data-value="upload"]');
+                                        if (uploadTab instanceof HTMLElement) {
+                                            uploadTab.click();
+                                        }
+                                    }}>
+                                        Upload CV
+                                    </Button>
                                 </div>
                             )}
                         </>
